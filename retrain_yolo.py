@@ -11,12 +11,8 @@ import PIL
 import tensorflow as tf
 from keras import backend as K
 from keras.layers import Input, Lambda, Conv2D
-from keras.models import load_model, Model
+from keras.models import load_model, Model, save_model
 from keras.callbacks import TensorBoard, ModelCheckpoint, EarlyStopping
-
-import json
-from keras.models import Model, model_from_json, save_model
-import tensorflow as tf 
 
 from yad2k.models.keras_yolo import (preprocess_true_boxes, yolo_body,
                                      yolo_eval, yolo_head, yolo_loss)
@@ -265,11 +261,12 @@ def train(model, class_names, anchors, image_data, boxes, detectors_mask,
               np.zeros(len(image_data)),
               validation_split=validation_split,
               batch_size=32,
-              epochs=5,
+              #epochs=5,
+              epochs=1,
               callbacks=[logging])
     model.save_weights('trained_stage_1.h5')
 
-    model_body, model = create_model(anchors, class_names, load_pretrained=False, freeze_body=False)
+    model_body, model = create_model(anchors, class_names, load_pretrained=True, freeze_body=False)
 
     model.load_weights('trained_stage_1.h5')
 
@@ -283,7 +280,8 @@ def train(model, class_names, anchors, image_data, boxes, detectors_mask,
               np.zeros(len(image_data)),
               validation_split=0.1,
               batch_size=8,
-              epochs=30,
+              #epochs=30,
+              epochs=1,
               callbacks=[logging])
 
     model.save_weights('trained_stage_2.h5')
@@ -292,7 +290,8 @@ def train(model, class_names, anchors, image_data, boxes, detectors_mask,
               np.zeros(len(image_data)),
               validation_split=0.1,
               batch_size=8,
-              epochs=30,
+              #epochs=30,
+              epochs=1,
               callbacks=[logging, checkpoint, early_stopping])
 
     model.save_weights('trained_stage_3.h5')
@@ -306,12 +305,8 @@ def train(model, class_names, anchors, image_data, boxes, detectors_mask,
     saver = tf.train.Saver()
     saver.save(sess, model_prefix+'.ckpt', write_meta_graph=True)
 
-    model.save_weights(model_prefix+".h5")
-    save_model(model, model_prefix+".h5", overwrite=True)
-    model_json = model.to_json()
-    with open(model_prefix+".json", "w") as json_file:
-        json_file.write(model_json)
-
+    model_body.save_weights(model_prefix+"_weights.h5")
+    save_model(model_body, model_prefix+".h5", overwrite=True)
 
 def draw(model_body, class_names, anchors, image_data, image_set='val',
             weights_name='trained_stage_3_best.h5', out_path="output_images", save_all=True):
