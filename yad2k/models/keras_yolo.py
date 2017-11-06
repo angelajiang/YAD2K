@@ -62,6 +62,14 @@ def yolo_body(inputs, num_anchors, num_classes):
     x = DarknetConv2D(num_anchors * (num_classes + 5), (1, 1))(x)
     return Model(inputs, x)
 
+def yolo_post_process(feats, anchors, num_classes, input_image_shape, score_threshold, iou_threshold):
+    yolo_outputs = yolo_head(feats, anchors, num_classes)
+    boxes, scores, classes = yolo_eval(
+        yolo_outputs,
+        input_image_shape,
+        score_threshold=score_threshold,
+        iou_threshold=iou_threshold)
+    return boxes, scores, classes
 
 def yolo_head(feats, anchors, num_classes):
     """Convert final layer features to bounding box parameters.

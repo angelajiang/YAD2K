@@ -7,11 +7,13 @@ import os
 import random
 
 import numpy as np
+import keras
 from keras import backend as K
-from keras.models import load_model
+from keras.models import load_model, save_model
 from PIL import Image, ImageDraw, ImageFont
+import tensorflow as tf
 
-from yad2k.models.keras_yolo import yolo_eval, yolo_head
+from yad2k.models.keras_yolo import yolo_head, yolo_eval, yolo_post_process
 
 parser = argparse.ArgumentParser(
     description='Run a YOLO_v2 style detection model on test images..')
@@ -107,13 +109,24 @@ def _main(args):
 
     # Generate output tensor targets for filtered bounding boxes.
     # TODO: Wrap these backend operations with Keras layers.
-    yolo_outputs = yolo_head(yolo_model.output, anchors, len(class_names))
+
     input_image_shape = K.placeholder(shape=(2, ))
+
+    '''
+    yolo_outputs = yolo_head(yolo_model.output, anchors, len(class_names))
     boxes, scores, classes = yolo_eval(
         yolo_outputs,
         input_image_shape,
         score_threshold=args.score_threshold,
         iou_threshold=args.iou_threshold)
+    '''
+
+    boxes, scores, classes = yolo_post_process(yolo_model.output,
+                                               anchors,
+                                               len(class_names),
+                                               input_image_shape,
+                                               args.score_threshold,
+                                               args.iou_threshold)
 
     for image_file in os.listdir(test_path):
         try:
@@ -139,6 +152,15 @@ def _main(args):
 
         image_data /= 255.
         image_data = np.expand_dims(image_data, 0)  # Add batch dimension.
+
+        out_boxes, out_scores, out_classes = sess.run(
+            [boxes, scores, classes],
+            feed_dict={
+                yolo_model.input: image_data,
+                input_image_shape: [image.size[1], image.size[0]],
+                K.learning_phase(): 0
+            })
+        print('Found {} boxes for {}'.format(len(out_boxes), image_file))
 
         out_boxes, out_scores, out_classes = sess.run(
             [boxes, scores, classes],
@@ -188,8 +210,22 @@ def _main(args):
             del draw
 
         image.save(os.path.join(output_path, image_file), quality=90)
-    sess.close()
 
+    ## Orthoganal: Save model with yolo_eval
+    '''
+    model_prefix = "data/yolov2-model-full"
+
+    graph_def = sess.graph.as_graph_def()
+    tf.train.write_graph(graph_def,
+                         logdir='.',
+                         name=model_prefix+".pb",
+                         as_text=False)
+    saver = tf.train.Saver()
+    saver.save(sess, model_prefix+'.ckpt', write_meta_graph=True)
+    save_model(model_full, model_prefix+".h5", overwrite=True)
+    '''
+
+    sess.close()
 
 if __name__ == '__main__':
     _main(parser.parse_args())
