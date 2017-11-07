@@ -13,6 +13,9 @@ from keras.models import load_model, save_model
 from PIL import Image, ImageDraw, ImageFont
 import tensorflow as tf
 
+from keras.models import Sequential
+from keras.layers import Lambda
+
 from yad2k.models.keras_yolo import yolo_head, yolo_eval, yolo_post_process
 
 parser = argparse.ArgumentParser(
@@ -128,6 +131,17 @@ def _main(args):
                                                args.score_threshold,
                                                args.iou_threshold)
 
+    '''
+    print yolo_model.summary()
+    x = yolo_model.layers[-1].output
+    x = Lambda(yolo_post_process,
+               arguments= {"anchors": anchors,
+                           "num_classes": len(class_names),
+                           "input_image_shape": input_image_shape,
+                           "score_threshold": args.score_threshold,
+                           "iou_threshold": args.iou_threshold})(x)
+                           '''
+
     for image_file in os.listdir(test_path):
         try:
             image_type = imghdr.what(os.path.join(test_path, image_file))
@@ -152,15 +166,6 @@ def _main(args):
 
         image_data /= 255.
         image_data = np.expand_dims(image_data, 0)  # Add batch dimension.
-
-        out_boxes, out_scores, out_classes = sess.run(
-            [boxes, scores, classes],
-            feed_dict={
-                yolo_model.input: image_data,
-                input_image_shape: [image.size[1], image.size[0]],
-                K.learning_phase(): 0
-            })
-        print('Found {} boxes for {}'.format(len(out_boxes), image_file))
 
         out_boxes, out_scores, out_classes = sess.run(
             [boxes, scores, classes],
