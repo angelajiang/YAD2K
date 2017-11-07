@@ -13,9 +13,14 @@ shuffle = False # shuffle dataset
 
 text = []
 image_labels = []
-dataset_path_base = '/users/ahjiang/image-data/bb/udacity-od-crowdai/object-detection-crowdai-micro/'
-annotations_path = os.path.join(dataset_path_base, 'annotations')
-images_path = os.path.join(dataset_path_base, 'images')
+dataset_path_base = '/users/ahjiang/image-data/bb/udacity-od-crowdai/object-detection-crowdai-scaled/'
+annotations_path = os.path.join(dataset_path_base, 'annotations/training')
+images_path = os.path.join(dataset_path_base, 'images/training')
+scale = 0.5
+if scale != 1:
+    print("[WARNING] Scaling annotations by", scale)
+print(images_path)
+
 for i,filename in enumerate(glob.glob(annotations_path+'/*.xml')):   
     image_labels.append([])  
     image_labels[i].append([images_path, os.path.basename(filename).split('.')[0] + ".jpg"])
@@ -29,16 +34,13 @@ for i,filename in enumerate(glob.glob(annotations_path+'/*.xml')):
         boxConfig.append(0)
 
         box = object.find('bndbox')
-        boxConfig.append(float(box.find('xmin').text))
-        boxConfig.append(float(box.find('ymin').text))
-        boxConfig.append(float(box.find('xmax').text))
-        boxConfig.append(float(box.find('ymax').text))
+        boxConfig.append(float(box.find('xmin').text) * scale)
+        boxConfig.append(float(box.find('ymin').text) * scale)
+        boxConfig.append(float(box.find('xmax').text) * scale)
+        boxConfig.append(float(box.find('ymax').text) * scale)
 
         image_labels[i].append(boxConfig)
 
-
-for i in image_labels :
-    print(i)
 
 # load images
 images = []
