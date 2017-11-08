@@ -4,6 +4,7 @@ This is a script that can be used to retrain the YOLOv2 model for your own datas
 import argparse
 
 import os
+import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -62,9 +63,9 @@ def _main(args):
     classes_path = os.path.expanduser(args.classes_path)
     anchors_path = os.path.expanduser(args.anchors_path)
     model_prefix = os.path.expanduser(args.model_prefix)
-    num_frozen = os.path.expanduser(args.num_frozen)
+    num_frozen = int(os.path.expanduser(args.num_frozen))
 
-    model_prefix += "-" + str(num_frozen) + "frozen"
+    model_prefix += "-" + str(num_frozen) + "fr"
     print "Training  model:", model_prefix
 
     class_names = get_classes(classes_path)
@@ -95,14 +96,14 @@ def _main(args):
         num_frozen
     )
 
-    model_body, model = create_model(anchors, class_names)
+    model_body, model = create_model(anchors, class_names, num_frozen=num_frozen)
 
     draw(model_body,
         class_names,
         anchors,
         image_data,
         image_set='val', # assumes training/validation split is 0.9
-        weights_name='trained_stage_3_best.h5',
+        weights_name='data/checkpoint_best_weights.h5',
         save_all=False)
 
 
@@ -223,11 +224,12 @@ def create_model(anchors, class_names, load_pretrained=True, num_frozen=0):
             model_body.save_weights(topless_yolo_path)
         topless_yolo.load_weights(topless_yolo_path)
 
-    if num_frozen > len(topless_yolo.layers):
-        print "Cannot freeze", num_frozen, "/", len(topless_yolo.layers), "layers"
+    num_layers = len(topless_yolo.layers)
+    if num_frozen > num_layers:
+        print "Cannot freeze", num_frozen, "/", num_layers, "layers"
         sys.exit()
 
-    print "Freezing", num_frozen, "/", len(topless_yolo.layers), "layers"
+    print "Freezing", num_frozen, "/", num_layers, "layers"
     for i, layer in enumerate(topless_yolo.layers):
         if i < num_frozen:
             layer.trainable = False
@@ -256,8 +258,7 @@ def create_model(anchors, class_names, load_pretrained=True, num_frozen=0):
     return model_body, model
 
 def train(class_names, anchors, image_data, boxes, detectors_mask,
-          matching_true_boxes, model_prefix, validation_split=0.1,
-          num_frozen=0):
+          matching_true_boxes, model_prefix, num_frozen, validation_split=0.1):
     '''
     retrain/fine-tune the model
 
@@ -280,7 +281,7 @@ def train(class_names, anchors, image_data, boxes, detectors_mask,
               np.zeros(len(image_data)),
               validation_split=0.1,
               batch_size=8,
-              epochs=30,
+              epochs=40,
               #epochs=1,
               callbacks=[logging, checkpoint, early_stopping])
 
@@ -297,7 +298,7 @@ def train(class_names, anchors, image_data, boxes, detectors_mask,
     save_model(model_body, model_prefix+".h5", overwrite=True)
 
 def draw(model_body, class_names, anchors, image_data, image_set='val',
-            weights_name='data/checkpoint_best_weights.h5', out_path="output_images", save_all=True):
+            weights_name='data/checkpoint_best_weights.h5', out_path="data/output_images", save_all=True):
     '''
     Draw bounding boxes on image data
     '''
