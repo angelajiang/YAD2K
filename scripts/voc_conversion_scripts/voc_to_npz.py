@@ -16,10 +16,17 @@ image_labels = []
 dataset_path_base = '/users/ahjiang/image-data/bb/udacity-od-crowdai/object-detection-crowdai-scaled/'
 annotations_path = os.path.join(dataset_path_base, 'annotations/training')
 images_path = os.path.join(dataset_path_base, 'images/training')
+labels_path = '/users/ahjiang/image-data/bb/udacity-od-crowdai/Udacity_object_dataset/crowdai-labels.txt'
 scale = 0.5
 if scale != 1:
     print("[WARNING] Scaling annotations by", scale)
 print(images_path)
+
+label_indices = {}
+with open(labels_path) as f:
+    for i, line in enumerate(f):
+        label = line.rstrip()
+        label_indices[label] = i
 
 for i,filename in enumerate(glob.glob(annotations_path+'/*.xml')):   
     image_labels.append([])  
@@ -31,7 +38,9 @@ for i,filename in enumerate(glob.glob(annotations_path+'/*.xml')):
 
         boxConfig = []
         # Classe of the object
-        boxConfig.append(0)
+        class_str = object.find('name').text
+        class_index = label_indices[class_str]
+        boxConfig.append(class_index)
 
         box = object.find('bndbox')
         boxConfig.append(float(box.find('xmin').text) * scale)
