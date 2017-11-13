@@ -30,11 +30,9 @@ def split(split_ratio, annotations_path, shuffle_frames_frames = True):
     return fnames[:num_images]
 
 def create_npz(images_path, annotations_path, labels_path, dest_path,
-               split_ratio = 1, scale = 1, debug = False, shuffle_frames = False):
+               target_width = 640, target_height = 400,
+               split_ratio = 1, debug = False, shuffle_frames = False):
     # Debug only loads 10 images
-
-    if scale != 1:
-        print("[WARNING] Scaling annotations by", scale)
 
     text = []
     image_labels = []
@@ -47,12 +45,37 @@ def create_npz(images_path, annotations_path, labels_path, dest_path,
 
     annotations_to_include = split(split_ratio, annotations_path, shuffle_frames)
 
+    # load images
+    images = []
+
     i = 0
     for fname in os.listdir(annotations_path):
         if fname in annotations_to_include:
             filename = os.path.join(annotations_path, fname)
+
+            # Parse images
+            img = cv2.imread(os.path.join(images_path, os.path.basename(filename).split('.')[0] + ".jpg"))
+
+            old_shape = img.shape
+            width, height = img.shape[:2]
+            width_scale = target_width / float(width) 
+            height_scale = target_height / float(height) 
+
+            img = cv2.resize(img, (target_width, target_height))
+
+            try:
+                (b, g, r)=cv2.split(img)
+                img = cv2.merge([r,g,b])
+            except:
+                print(i)
+
+            print(old_shape, img.shape)
+            images.append(img)
+
+            # Parse annotations
             image_labels.append([])  
             image_labels[i].append([images_path, os.path.basename(filename).split('.')[0] + ".jpg"])
+
             tree = etree.parse(filename)
             root = tree.getroot()
 
@@ -65,37 +88,18 @@ def create_npz(images_path, annotations_path, labels_path, dest_path,
                 boxConfig.append(class_index)
 
                 box = object.find('bndbox')
-                boxConfig.append(float(box.find('xmin').text) * scale)
-                boxConfig.append(float(box.find('ymin').text) * scale)
-                boxConfig.append(float(box.find('xmax').text) * scale)
-                boxConfig.append(float(box.find('ymax').text) * scale)
+                boxConfig.append(float(box.find('xmin').text) * width_scale)
+                boxConfig.append(float(box.find('ymin').text) * width_scale)
+                boxConfig.append(float(box.find('xmax').text) * height_scale)
+                boxConfig.append(float(box.find('ymax').text) * height_scale)
 
                 image_labels[i].append(boxConfig)
+
             i += 1
-
-
-    # load images
-    images = []
-    for i, label in enumerate(image_labels):
-        #img = np.array(PIL.Image.open(os.path.join(label[0][0], label[0][1])).resize((640, 480)), dtype=np.uint8)
-        img = cv2.imread(os.path.join(label[0][0], label[0][1]))
-        #img = cv2.resize(img, (640, 480))
-        #img = np.array(PIL.Image.open(os.path.join(label[0][0], label[0][1])), dtype=np.uint8)
-
-        try:
-            (b, g, r)=cv2.split(img)
-            img = cv2.merge([r,g,b])
-        except:
-            print(i)
-
-        print(img.shape)
-
-        images.append(img)
-        if debug and i == 9:
-            break
+            if debug and i == 10:
+                break
 
     #convert to numpy for saving
-    print(len(images))
     images = np.array(images, dtype=np.uint8)
     image_labels = [np.array(i[1:]) for i in image_labels]# remove the file names
     image_labels = np.array(image_labels)
