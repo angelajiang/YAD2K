@@ -3,7 +3,7 @@ import shutil
 import os
 import sys
 
-def split(dest_script_file, test_split, training_split,
+def split(dest_script_file, training_split, test_split,
           annotations_src_path, annotations_dest_path,
           images_src_path, images_dest_path):
 
@@ -55,6 +55,13 @@ def split(dest_script_file, test_split, training_split,
             f.write(line2)
 
 if __name__ == "__main__":
+    '''
+    split("generate_data_tmp.sh", .3, .2,
+          "/datasets/BigLearning/ahjiang/bb/udacity-od-crowdai/Udacity_object_dataset/object-detection-crowdai/annotations/",
+          "/datasets/BigLearning/ahjiang/bb/udacity-od-crowdai/object-detection-crowdai-full/annotations/",
+          "/datasets/BigLearning/ahjiang/bb/udacity-od-crowdai/object-detection-crowdai/",
+          "/datasets/BigLearning/ahjiang/bb/udacity-od-crowdai/object-detection-crowdai-full/images/")
+    '''
     split("generate_data_tmp.sh", .2, .3,
           "/datasets/BigLearning/ahjiang/bb/udacity-od-crowdai/Udacity_object_dataset/object-detection-crowdai/annotations/",
           "/datasets/BigLearning/ahjiang/bb/udacity-od-crowdai/object-detection-crowdai-full/annotations/",
