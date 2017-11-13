@@ -69,12 +69,11 @@ def create_npz(images_path, annotations_path, labels_path, dest_path,
             except:
                 print(i)
 
-            print(old_shape, img.shape)
+            #print(old_shape, img.shape)
             images.append(img)
 
             # Parse annotations
             image_labels.append([])  
-            image_labels[i].append([images_path, os.path.basename(filename).split('.')[0] + ".jpg"])
 
             tree = etree.parse(filename)
             root = tree.getroot()
@@ -101,7 +100,7 @@ def create_npz(images_path, annotations_path, labels_path, dest_path,
 
     #convert to numpy for saving
     images = np.array(images, dtype=np.uint8)
-    image_labels = [np.array(i[1:]) for i in image_labels]# remove the file names
+    image_labels = [np.array(i) for i in image_labels]# remove the file names
     image_labels = np.array(image_labels)
 
     print("Saving %d images" % len(images))
@@ -109,3 +108,4 @@ def create_npz(images_path, annotations_path, labels_path, dest_path,
     #save dataset
     np.savez(dest_path, images=images, boxes=image_labels)
     print('Data saved: ', dest_path + ".npz")
+    return dest_path
