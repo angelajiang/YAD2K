@@ -8,7 +8,8 @@ import numpy as np
 
 from lxml import etree
 
-def create_npz(images_path, annotations_path, labels_path, scale, dest_path, debug = False, shuffle = False):
+def create_npz(images_path, annotations_path, labels_path, dest_path,
+               scale = 1, debug = False, shuffle = False):
     # Debug only loads 10 images
 
     if scale != 1:
@@ -80,5 +81,5 @@ def create_npz(images_path, annotations_path, labels_path, scale, dest_path, deb
         images, image_labels = images[indices], image_labels[indices]
 
     #save dataset
-    np.savez(dataset_path, images=images, boxes=image_labels)
-    print('Data saved: ', dataset_path, ".npz")
+    np.savez(dest_path, images=images, boxes=image_labels)
+    print('Data saved: ', dest_path + ".npz")
