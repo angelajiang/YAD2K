@@ -3,14 +3,17 @@ import shutil
 import os
 import sys
 
-def randomize(filelist_file, script_file, test_split, training_split,
-              annotations_src_path, annotations_dest_path,
-              images_src_path, images_dest_path):
+def split(dest_script_file, test_split, training_split,
+          annotations_src_path, annotations_dest_path,
+          images_src_path, images_dest_path):
+
+    # Get image filenames to shuffle
     fnames = []
-    with open(filelist_file) as f:
-        for line in f:
-            fname = line.rstrip()
-            fnames.append(fname)
+    for the_file in os.listdir(images_src_path):
+        file_path = os.path.join(images_src_path, the_file)
+        if os.path.isfile(file_path) and the_file.endswith(".jpg"):
+            fnames.append(the_file.replace(".jpg", ""))
+
     shuffle(fnames)
 
     num_test_images = int(test_split * len(fnames))
@@ -36,7 +39,7 @@ def randomize(filelist_file, script_file, test_split, training_split,
             except Exception as e:
                 print(e)
 
-    with open(script_file, "w+") as f:
+    with open(dest_script_file, "w+") as f:
         for i, name in enumerate(fnames):
             if i < num_training_images:
                 line1 = "cp " + os.path.join(annotations_src_path, name) + ".xml " \
@@ -52,15 +55,8 @@ def randomize(filelist_file, script_file, test_split, training_split,
             f.write(line2)
 
 if __name__ == "__main__":
-    '''
-    randomize("data/files", "generate_data.sh", .2, .3,
-              "/users/ahjiang/image-data/bb/udacity-od-crowdai/Udacity_object_dataset/object-detection-crowdai/annotations/",
-              "/users/ahjiang/image-data/bb/udacity-od-crowdai/object-detection-crowdai-full/annotations/",
-              "/users/ahjiang/image-data/bb/udacity-od-crowdai/object-detection-crowdai/",
-              "/users/ahjiang/image-data/bb/udacity-od-crowdai/object-detection-crowdai-full/images/")
-    '''
-    randomize("data/files", "generate_data.sh", .4, .6,
-              "/users/ahjiang/image-data/bb/udacity-od-crowdai/Udacity_object_dataset/object-detection-crowdai/annotations/",
-              "/users/ahjiang/image-data/bb/udacity-od-crowdai/object-detection-crowdai-scaled/annotations/",
-              "/users/ahjiang/image-data/bb/udacity-od-crowdai/object-detection-crowdai-scaled/raw/images/",
-              "/users/ahjiang/image-data/bb/udacity-od-crowdai/object-detection-crowdai-scaled/images/")
+    split("generate_data_tmp.sh", .2, .3,
+          "/datasets/BigLearning/ahjiang/bb/udacity-od-crowdai/Udacity_object_dataset/object-detection-crowdai/annotations/",
+          "/datasets/BigLearning/ahjiang/bb/udacity-od-crowdai/object-detection-crowdai-full/annotations/",
+          "/datasets/BigLearning/ahjiang/bb/udacity-od-crowdai/object-detection-crowdai/",
+          "/datasets/BigLearning/ahjiang/bb/udacity-od-crowdai/object-detection-crowdai-full/images/")
