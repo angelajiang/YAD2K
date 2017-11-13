@@ -29,12 +29,12 @@ parser.add_argument(
     '-a',
     '--anchors_path',
     help='path to anchors file, defaults to yolo_anchors.txt',
-    default='model_data/yolo_anchors.txt')
+    default='data/model_data/yolo_anchors.txt')
 parser.add_argument(
     '-c',
     '--classes_path',
     help='path to classes file, defaults to coco_classes.txt',
-    default='model_data/coco_classes.txt')
+    default='data/model_data/coco_classes.txt')
 parser.add_argument(
     '-t',
     '--test_path',
