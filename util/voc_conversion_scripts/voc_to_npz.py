@@ -5,11 +5,32 @@ import glob
 import cv2
 import PIL.Image
 import numpy as np
+from random import shuffle
 
 from lxml import etree
 
+def split(split_ratio, annotations_path, shuffle_frames_frames = True):
+
+    assert split_ratio >= 0 and split_ratio <= 1, 'split_ratio should be between 0 and 1'
+
+    # Get image filenames to shuffle_frames
+    fnames = []
+    for the_file in os.listdir(annotations_path):
+        file_path = os.path.join(annotations_path, the_file)
+        if os.path.isfile(file_path) and the_file.endswith(".xml"):
+            fnames.append(the_file)
+
+    if shuffle_frames_frames:
+        shuffle(fnames)
+
+    num_images = int(split_ratio * len(fnames))
+
+    print("Returning %d images" % num_images)
+
+    return fnames[:num_images]
+
 def create_npz(images_path, annotations_path, labels_path, dest_path,
-               scale = 1, debug = False, shuffle = False):
+               split_ratio = 1, scale = 1, debug = False, shuffle_frames = False):
     # Debug only loads 10 images
 
     if scale != 1:
@@ -24,27 +45,33 @@ def create_npz(images_path, annotations_path, labels_path, dest_path,
             label = line.rstrip()
             label_indices[label] = i
 
-    for i,filename in enumerate(glob.glob(annotations_path+'/*.xml')):   
-        image_labels.append([])  
-        image_labels[i].append([images_path, os.path.basename(filename).split('.')[0] + ".jpg"])
-        tree = etree.parse(filename)
-        root = tree.getroot()
+    annotations_to_include = split(split_ratio, annotations_path, shuffle_frames)
 
-        for j,object in enumerate(root.findall('object')) :
+    i = 0
+    for fname in os.listdir(annotations_path):
+        if fname in annotations_to_include:
+            filename = os.path.join(annotations_path, fname)
+            image_labels.append([])  
+            image_labels[i].append([images_path, os.path.basename(filename).split('.')[0] + ".jpg"])
+            tree = etree.parse(filename)
+            root = tree.getroot()
 
-            boxConfig = []
-            # Classe of the object
-            class_str = object.find('name').text
-            class_index = label_indices[class_str]
-            boxConfig.append(class_index)
+            for j,object in enumerate(root.findall('object')) :
 
-            box = object.find('bndbox')
-            boxConfig.append(float(box.find('xmin').text) * scale)
-            boxConfig.append(float(box.find('ymin').text) * scale)
-            boxConfig.append(float(box.find('xmax').text) * scale)
-            boxConfig.append(float(box.find('ymax').text) * scale)
+                boxConfig = []
+                # Classe of the object
+                class_str = object.find('name').text
+                class_index = label_indices[class_str]
+                boxConfig.append(class_index)
 
-            image_labels[i].append(boxConfig)
+                box = object.find('bndbox')
+                boxConfig.append(float(box.find('xmin').text) * scale)
+                boxConfig.append(float(box.find('ymin').text) * scale)
+                boxConfig.append(float(box.find('xmax').text) * scale)
+                boxConfig.append(float(box.find('ymax').text) * scale)
+
+                image_labels[i].append(boxConfig)
+            i += 1
 
 
     # load images
@@ -73,12 +100,7 @@ def create_npz(images_path, annotations_path, labels_path, dest_path,
     image_labels = [np.array(i[1:]) for i in image_labels]# remove the file names
     image_labels = np.array(image_labels)
 
-    #shuffle dataset
-    if shuffle:
-        np.random.seed(13)
-        indices = np.arange(len(images))
-        np.random.shuffle(indices)
-        images, image_labels = images[indices], image_labels[indices]
+    print("Saving %d images" % len(images))
 
     #save dataset
     np.savez(dest_path, images=images, boxes=image_labels)
