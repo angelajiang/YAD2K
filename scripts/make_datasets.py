@@ -8,8 +8,8 @@ import merge_npzs as mnpz
 
 if __name__ == "__main__":
     data_path_base = '/datasets/BigLearning/ahjiang/bb/'
-    target_width = 640
-    target_height = 400
+    target_width = 400
+    target_height = 640
 
     # CrowdAI
     dataset_path_base = 'udacity-od-crowdai/object-detection-crowdai-scaled/'
@@ -21,7 +21,7 @@ if __name__ == "__main__":
                                'images/training')
     labels_path = os.path.join(data_path_base,
                                'udacity-od-crowdai/Udacity_object_dataset/crowdai-labels.txt')
-    split1 = 0.01
+    split1 = 0.8
     dest_file = 'npz/object-detect-crowd-ai-tmp'
     dest_path = os.path.join(data_path_base, dest_file)
 
@@ -32,6 +32,7 @@ if __name__ == "__main__":
                     target_width = target_width,
                     target_height = target_height,
                     split_ratio = split1,
+                    scale = 0.5,
                     debug = False,
                     shuffle_frames = False)
 
@@ -47,7 +48,7 @@ if __name__ == "__main__":
     labels_path = os.path.join(data_path_base,
                                dataset_path_base,
                                'labels.txt')
-    split2 = 0.01
+    split2 = 0.05
     dest_file = 'npz/youtube-bb-car-truck-tmp'
     dest_path = os.path.join(data_path_base, dest_file)
 

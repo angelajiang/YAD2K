@@ -31,7 +31,7 @@ def split(split_ratio, annotations_path, shuffle_frames_frames = True):
 
 def create_npz(images_path, annotations_path, labels_path, dest_path,
                target_width = 640, target_height = 400,
-               split_ratio = 1, debug = False, shuffle_frames = False):
+               split_ratio = 1, scale = 1, debug = False, shuffle_frames = False):
     # Debug only loads 10 images
 
     text = []
@@ -61,7 +61,7 @@ def create_npz(images_path, annotations_path, labels_path, dest_path,
             width_scale = target_width / float(width) 
             height_scale = target_height / float(height) 
 
-            img = cv2.resize(img, (target_width, target_height))
+            img = cv2.resize(img, (target_height, target_width))
 
             try:
                 (b, g, r)=cv2.split(img)
@@ -81,22 +81,34 @@ def create_npz(images_path, annotations_path, labels_path, dest_path,
             for j,object in enumerate(root.findall('object')) :
 
                 boxConfig = []
-                # Classe of the object
+                # Classes of the object
                 class_str = object.find('name').text
                 class_index = label_indices[class_str]
                 boxConfig.append(class_index)
 
                 box = object.find('bndbox')
-                boxConfig.append(float(box.find('xmin').text) * width_scale)
-                boxConfig.append(float(box.find('ymin').text) * width_scale)
-                boxConfig.append(float(box.find('xmax').text) * height_scale)
-                boxConfig.append(float(box.find('ymax').text) * height_scale)
+                boxConfig.append(float(box.find('xmin').text) * scale * width_scale)
+                boxConfig.append(float(box.find('ymin').text) * scale * height_scale)
+                boxConfig.append(float(box.find('xmax').text) * scale * width_scale)
+                boxConfig.append(float(box.find('ymax').text) * scale * height_scale)
 
                 image_labels[i].append(boxConfig)
 
             i += 1
             if debug and i == 10:
                 break
+
+    #convert to numpy for saving
+    images = np.array(images, dtype=np.uint8)
+    image_labels = [np.array(i[1:]) for i in image_labels]# remove the file names
+    image_labels = np.array(image_labels)
+
+    #shuffle dataset
+    if shuffle:
+        np.random.seed(13)
+        indices = np.arange(len(images))
+        np.random.shuffle(indices)
+        images, image_labels = images[indices], image_labels[indices]
 
     #convert to numpy for saving
     images = np.array(images, dtype=np.uint8)

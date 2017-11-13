@@ -215,10 +215,10 @@ def create_model(anchors, class_names, load_pretrained=True, num_frozen=0):
 
     if load_pretrained:
         # Save topless yolo:
-        topless_yolo_path = os.path.join('model_data', 'yolo_topless.h5')
+        topless_yolo_path = os.path.join('data', 'model_data', 'yolo_topless.h5')
         if not os.path.exists(topless_yolo_path):
             print("CREATING TOPLESS WEIGHTS FILE")
-            yolo_path = os.path.join('model_data', 'yolo.h5')
+            yolo_path = os.path.join('data', 'model_data', 'yolo.h5')
             model_body = load_model(yolo_path)
             model_body = Model(model_body.inputs, model_body.layers[-2].output)
             model_body.save_weights(topless_yolo_path)
