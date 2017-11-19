@@ -2,6 +2,7 @@
 """Run a YOLO_v2 style detection model on test images."""
 import argparse
 import colorsys
+import cv2
 import imghdr
 import os
 import random
@@ -15,6 +16,10 @@ import tensorflow as tf
 
 from keras.models import Sequential
 from keras.layers import Lambda
+
+import sys
+sys.path.append("util")
+import data_utils
 
 from yad2k.models.keras_yolo import yolo_head, yolo_eval, yolo_post_process
 
@@ -36,8 +41,12 @@ parser.add_argument(
     help='path to classes file, defaults to coco_classes.txt',
     default='data/model_data/coco_classes.txt')
 parser.add_argument(
+    '--mode',
+    help='{0: dir, 1:npz}',
+    default='0')
+parser.add_argument(
     '-t',
-    '--test_path',
+    '--test_dir',
     help='path to directory of test images, defaults to images/',
     default='images')
 parser.add_argument(
@@ -64,9 +73,12 @@ def _main(args):
     assert model_path.endswith('.h5'), 'Keras model must be a .h5 file.'
     anchors_path = os.path.expanduser(args.anchors_path)
     classes_path = os.path.expanduser(args.classes_path)
-    test_path = os.path.expanduser(args.test_path)
-    output_path = os.path.expanduser(args.output_path)
 
+    input_mode = int(os.path.expanduser(args.mode))
+    assert input_mode == 0 or input_mode == 1, 'Input mode must be in {0,1}'
+    test_path = os.path.expanduser(args.test_dir)
+
+    output_path = os.path.expanduser(args.output_path)
     if not os.path.exists(output_path):
         print('Creating output path {}'.format(output_path))
         os.mkdir(output_path)
@@ -115,15 +127,6 @@ def _main(args):
 
     input_image_shape = K.placeholder(shape=(2, ))
 
-    '''
-    yolo_outputs = yolo_head(yolo_model.output, anchors, len(class_names))
-    boxes, scores, classes = yolo_eval(
-        yolo_outputs,
-        input_image_shape,
-        score_threshold=args.score_threshold,
-        iou_threshold=args.iou_threshold)
-    '''
-
     boxes, scores, classes = yolo_post_process(yolo_model.output,
                                                anchors,
                                                len(class_names),
@@ -131,104 +134,98 @@ def _main(args):
                                                args.score_threshold,
                                                args.iou_threshold)
 
-    '''
-    print yolo_model.summary()
-    x = yolo_model.layers[-1].output
-    x = Lambda(yolo_post_process,
-               arguments= {"anchors": anchors,
-                           "num_classes": len(class_names),
-                           "input_image_shape": input_image_shape,
-                           "score_threshold": args.score_threshold,
-                           "iou_threshold": args.iou_threshold})(x)
-                           '''
 
-    for image_file in os.listdir(test_path):
-        try:
-            image_type = imghdr.what(os.path.join(test_path, image_file))
-            if not image_type:
+    total_num_bboxes = 0
+    total_num_images = 0
+    # "Dir" mode
+    if input_mode == 0:
+        for image_file in os.listdir(test_path):
+            try:
+                image_type = imghdr.what(os.path.join(test_path, image_file))
+                if not image_type:
+                    continue
+            except IsADirectoryError:
                 continue
-        except IsADirectoryError:
-            continue
 
-        image = Image.open(os.path.join(test_path, image_file))
-        if is_fixed_size:  # TODO: When resizing we can use minibatch input.
-            resized_image = image.resize(
-                tuple(reversed(model_image_size)), Image.BICUBIC)
-            image_data = np.array(resized_image, dtype='float32')
-        else:
-            # Due to skip connection + max pooling in YOLO_v2, inputs must have
-            # width and height as multiples of 32.
-            new_image_size = (image.width - (image.width % 32),
-                              image.height - (image.height % 32))
-            resized_image = image.resize(new_image_size, Image.BICUBIC)
-            image_data = np.array(resized_image, dtype='float32')
-            print(image_data.shape)
-
-        image_data /= 255.
-        image_data = np.expand_dims(image_data, 0)  # Add batch dimension.
-
-        out_boxes, out_scores, out_classes = sess.run(
-            [boxes, scores, classes],
-            feed_dict={
-                yolo_model.input: image_data,
-                input_image_shape: [image.size[1], image.size[0]],
-                K.learning_phase(): 0
-            })
-        print('Found {} boxes for {}'.format(len(out_boxes), image_file))
-
-        font = ImageFont.truetype(
-            font='font/FiraMono-Medium.otf',
-            size=np.floor(3e-2 * image.size[1] + 0.5).astype('int32'))
-        thickness = (image.size[0] + image.size[1]) // 300
-
-        for i, c in reversed(list(enumerate(out_classes))):
-            predicted_class = class_names[c]
-            box = out_boxes[i]
-            score = out_scores[i]
-
-            label = '{} {:.2f}'.format(predicted_class, score)
-
-            draw = ImageDraw.Draw(image)
-            label_size = draw.textsize(label, font)
-
-            top, left, bottom, right = box
-            top = max(0, np.floor(top + 0.5).astype('int32'))
-            left = max(0, np.floor(left + 0.5).astype('int32'))
-            bottom = min(image.size[1], np.floor(bottom + 0.5).astype('int32'))
-            right = min(image.size[0], np.floor(right + 0.5).astype('int32'))
-            print(label, (left, top), (right, bottom))
-
-            if top - label_size[1] >= 0:
-                text_origin = np.array([left, top - label_size[1]])
+            image = Image.open(os.path.join(test_path, image_file))
+            if is_fixed_size:  # TODO: When resizing we can use minibatch input.
+                resized_image = image.resize(
+                    tuple(reversed(model_image_size)), Image.BILINEAR)
+                image_data = np.array(resized_image, dtype='float32')
             else:
-                text_origin = np.array([left, top + 1])
+                # Due to skip connection + max pooling in YOLO_v2, inputs must have
+                # width and height as multiples of 32.
+                new_image_size = (image.width - (image.width % 32),
+                                  image.height - (image.height % 32))
+                resized_image = image.resize(new_image_size, Image.BILINEAR)
+                image_data = np.array(resized_image, dtype='float32')
 
-            # My kingdom for a good redistributable image drawing library.
-            for i in range(thickness):
-                draw.rectangle(
-                    [left + i, top + i, right - i, bottom - i],
-                    outline=colors[c])
-            draw.rectangle(
-                [tuple(text_origin), tuple(text_origin + label_size)],
-                fill=colors[c])
-            draw.text(text_origin, label, fill=(0, 0, 0), font=font)
-            del draw
+            image_data /= 255.
+            image_data = np.expand_dims(image_data, 0)  # Add batch dimension.
 
-        image.save(os.path.join(output_path, image_file), quality=90)
+            out_boxes, out_scores, out_classes = sess.run(
+                [boxes, scores, classes],
+                feed_dict={
+                    yolo_model.input: image_data,
+                    input_image_shape: [image.size[1], image.size[0]],
+                    K.learning_phase(): 0
+                })
+            print('Found {} boxes for {}'.format(len(out_boxes), image_file))
+            total_num_bboxes += len(out_boxes)
+            total_num_images += 1 
 
-    ## Orthoganal: Save model with yolo_eval
-    '''
-    model_prefix = "data/yolov2-model-full"
+            # Rank boxes, scores and classes by score
 
-    graph_def = sess.graph.as_graph_def()
-    tf.train.write_graph(graph_def,
-                         logdir='.',
-                         name=model_prefix+".pb",
-                         as_text=False)
-    saver = tf.train.Saver()
-    saver.save(sess, model_prefix+'.ckpt', write_meta_graph=True)
-    save_model(model_full, model_prefix+".h5", overwrite=True)
-    '''
+            for i, c in reversed(list(enumerate(out_classes))):
+                predicted_class = class_names[c]
+                box = out_boxes[i]
+                score = out_scores[i]
+                top, left, bottom, right = box
+                print predicted_class
+
+            image.save(os.path.join(output_path, image_file), quality=90)
+
+    # "NPZ" mode
+    elif input_mode == 1:
+        # 2 modes: 1) "dir" inference from dir 2) "npz" inference and mAP from bounding boxes
+        print test_path
+        data = np.load(test_path) # custom data saved as a numpy file.
+        input_images = data['images']
+        input_boxes = data['boxes']
+        #images, boxes = data_utils.process_data(data['images'], data['boxes'])
+        out_boxes = []
+        total_num_bboxes += len(out_boxes)
+
+        for image in input_images:
+            if is_fixed_size:
+                resized_image = cv2.resize(image,
+                                        tuple(reversed(model_image_size)),
+                                        interpolation = cv2.INTER_LINEAR)
+                image_data = np.array(resized_image, dtype='float32')
+            else:
+                # Due to skip connection + max pooling in YOLO_v2, inputs must have
+                # width and height as multiples of 32.
+                new_image_size = (image.width - (image.width % 32),
+                                  image.height - (image.height % 32))
+                resized_image = image.resize(new_image_size, Image.BILINEAR)
+                image_data = np.array(resized_image, dtype='float32')
+
+            image_data /= 255.
+            image_data = np.expand_dims(image_data, 0)  # Add batch dimension.
+
+            out_boxes, out_scores, out_classes = sess.run(
+                [boxes, scores, classes],
+                feed_dict={
+                    yolo_model.input: image_data,
+                    input_image_shape: [image.shape[1], image.shape[0]],
+                    K.learning_phase(): 0
+                })
+
+            print('Found {} boxes'.format(len(out_boxes)))
+            total_num_bboxes += len(out_boxes)
+            total_num_images += 1 
+
+    print('Found {} boxes in {} images'.format(total_num_bboxes, total_num_images))
 
     sess.close()
 
