@@ -1,6 +1,63 @@
 import PIL
 import numpy as np
 
+
+def bb_intersection_over_union(box_A, box_B):
+    # determine the (x, y)-coordinates of the intersection rectangle
+    # Assume box in format [xmin, ymin, xmax, ymax]
+
+    xmin_A = box_A[0]
+    ymin_A = box_A[1]
+    xmax_A = box_A[2]
+    ymax_A = box_A[3]
+
+    xmin_B = box_B[0]
+    ymin_B = box_B[1]
+    xmax_B = box_B[2]
+    ymax_B = box_B[3]
+
+    x1 = max(xmin_A, xmin_B)
+    x2 = min(xmax_A, xmax_B)
+    y1 = max(ymin_A, ymin_B)
+    y2 = min(ymax_A, ymax_B)
+
+    # check if there is no overlap
+    if (xmax_A < xmin_B or xmax_A > xmax_B) and \
+       (xmax_B < xmin_A or xmax_B > xmax_A) \
+            or \
+       (ymax_A < ymin_B or ymax_A > ymax_B) and \
+       (ymax_B < ymin_A or ymax_B > ymax_A):
+        return 0
+ 
+    # compute the area of intersection rectangle
+    interArea = (x2 - x1) * (y2 - y1)
+ 
+    # compute the area of both the prediction and ground-truth
+    # rectangles
+    box_AArea = (xmax_A - xmin_A) * (ymax_A - ymin_A)
+    box_BArea = (xmax_B - xmin_B) * (ymax_B - ymin_B)
+
+    # compute the intersection over union by taking the intersection
+    # area and dividing it by the sum of prediction + ground-truth
+    # areas - the interesection area
+    iou = interArea / float(box_AArea + box_BArea - interArea)
+ 
+    # return the intersection over union value
+    return iou
+
+def calculate_mAP(gt_boxes, p_boxes, p_scores, p_classes):
+    # Assumes boxes, scores and classes are sorted by scores
+
+    for gt_box in gt_boxes:
+        max_iou = - float("inf")
+        for p_box, p_score, p_class in zip(p_boxes, p_scores, p_classes):
+            iou = bb_intersection_over_union(gt_box[1:], p_box)
+            if iou > max_iou:
+                max_iou = iou
+        print "Max IOU:", max_iou
+
+    return 0.1
+
 def process_data(images, boxes=None):
     '''processes the data'''
     images = [PIL.Image.fromarray(i) for i in images]

@@ -137,6 +137,12 @@ def _main(args):
 
     total_num_bboxes = 0
     total_num_images = 0
+
+    ymaxmax = 0
+    xmaxmax = 0
+    g_ymaxmax = 0
+    g_xmaxmax = 0
+
     # "Dir" mode
     if input_mode == 0:
         for image_file in os.listdir(test_path):
@@ -170,7 +176,7 @@ def _main(args):
                     input_image_shape: [image.size[1], image.size[0]],
                     K.learning_phase(): 0
                 })
-            print('Found {} boxes for {}'.format(len(out_boxes), image_file))
+
             total_num_bboxes += len(out_boxes)
             total_num_images += 1 
 
@@ -188,27 +194,34 @@ def _main(args):
     # "NPZ" mode
     elif input_mode == 1:
         # 2 modes: 1) "dir" inference from dir 2) "npz" inference and mAP from bounding boxes
-        print test_path
         data = np.load(test_path) # custom data saved as a numpy file.
         input_images = data['images']
         input_boxes = data['boxes']
-        #images, boxes = data_utils.process_data(data['images'], data['boxes'])
-        out_boxes = []
-        total_num_bboxes += len(out_boxes)
 
-        for image in input_images:
+        total_num_bboxes = 0
+
+        for image, gt_boxes in zip(input_images, input_boxes):
+            if total_num_images > 10:
+                break
+
+            height, width = image.shape[:2]
+
             if is_fixed_size:
+                width_scale = model_image_size[1] / float(width) 
+                height_scale = model_image_size[0] / float(height) 
                 resized_image = cv2.resize(image,
                                         tuple(reversed(model_image_size)),
                                         interpolation = cv2.INTER_LINEAR)
-                image_data = np.array(resized_image, dtype='float32')
             else:
                 # Due to skip connection + max pooling in YOLO_v2, inputs must have
                 # width and height as multiples of 32.
                 new_image_size = (image.width - (image.width % 32),
                                   image.height - (image.height % 32))
+                width_scale = new_image_size[0]
+                height_scale = new_image_size[1]
                 resized_image = image.resize(new_image_size, Image.BILINEAR)
-                image_data = np.array(resized_image, dtype='float32')
+            
+            image_data = np.array(resized_image, dtype='float32')
 
             image_data /= 255.
             image_data = np.expand_dims(image_data, 0)  # Add batch dimension.
@@ -217,13 +230,50 @@ def _main(args):
                 [boxes, scores, classes],
                 feed_dict={
                     yolo_model.input: image_data,
-                    input_image_shape: [image.shape[1], image.shape[0]],
+                    input_image_shape: [image.shape[0], image.shape[1]],
                     K.learning_phase(): 0
                 })
 
-            print('Found {} boxes'.format(len(out_boxes)))
             total_num_bboxes += len(out_boxes)
             total_num_images += 1 
+
+            for gt_box in gt_boxes:
+                xmin = gt_box[1]
+                ymin = gt_box[2]
+                xmax = gt_box[3]
+                ymax = gt_box[4]
+                if ymax > g_ymaxmax:
+                    g_ymaxmax = ymax
+                if xmax > g_xmaxmax:
+                    g_xmaxmax = xmax
+
+            transformed_out_boxes = []
+            for out_box in out_boxes:
+                new_box = [0,0,0,0]
+                xmin = out_box[1]
+                xmax = out_box[3]
+                ymin = out_box[0]
+                ymax = out_box[2]
+
+                if ymax > ymaxmax:
+                    ymaxmax = ymax
+                if xmax > xmaxmax:
+                    xmaxmax = xmax
+
+                new_box[0] = xmin
+                new_box[1] = ymin
+                new_box[2] = xmax
+                new_box[3] = ymax
+
+                transformed_out_boxes.append(new_box)
+
+            mAP = data_utils.calculate_mAP(gt_boxes,
+                                           transformed_out_boxes,
+                                           out_scores,
+                                           out_classes)
+
+    print "Pseudo-dimensions ground truth:", g_xmaxmax, g_ymaxmax
+    print "Pseudo-dimensions predicted:", xmaxmax, ymaxmax
 
     print('Found {} boxes in {} images'.format(total_num_bboxes, total_num_images))
 
