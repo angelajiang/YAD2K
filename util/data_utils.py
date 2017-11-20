@@ -48,15 +48,62 @@ def bb_intersection_over_union(box_A, box_B):
 def calculate_mAP(gt_boxes, p_boxes, p_scores, p_classes):
     # Assumes boxes, scores and classes are sorted by scores
 
-    for gt_box in gt_boxes:
-        max_iou = - float("inf")
-        for p_box, p_score, p_class in zip(p_boxes, p_scores, p_classes):
-            iou = bb_intersection_over_union(gt_box[1:], p_box)
-            if iou > max_iou:
-                max_iou = iou
-        print "Max IOU:", max_iou
+    precisions = []
+    thresholds = np.arange(0.0, 1.0, 0.1)
 
-    return 0.1
+    for score_threshold in thresholds:
+
+        tps = 0     # True positives
+        fns = 0     # False negatives
+        fps = 0     # False postives
+
+        iou_threshold = 0.5
+
+        # Filter for boxes where score is above score_threshold
+        boxes_and_classes = np.array(zip(p_boxes, p_classes))
+        score_filter = np.array([True if score >= score_threshold else False for score in p_scores])
+
+        # If no predictions with high enough score, precision is 1
+        if True not in score_filter:
+            precision =  1 #TODO look up
+        else:
+            filtered_boxes_and_classes = boxes_and_classes[score_filter]
+            boxes_available = [1] * len(filtered_boxes_and_classes)
+            # Greedily assign predicted boxes to gt_boxes
+            for gt_box in gt_boxes:
+                detected = False
+                # Predicted box must have high IOU with GT and be available
+                for i, (p_box, p_class) in enumerate(filtered_boxes_and_classes):
+                    iou = bb_intersection_over_union(gt_box[1:], p_box)
+                    if iou >= iou_threshold and p_class == gt_box[0] and boxes_available[i]:
+                        tps += 1
+                        boxes_available[i] = 0
+                        detected = True
+                        break
+                if not detected:
+                    fns += 1
+            fps += sum(boxes_available)
+            precision = tps / float(tps + fps)
+
+            # If no boxes to recall, recall is 1
+            if len(gt_boxes) == 0:
+                recall = 1
+            else:
+                recall = tps / float(tps + fns)
+
+            assert tps + fps == len(filtered_boxes_and_classes)
+            assert tps + fns == len(gt_boxes)
+
+        #print("Threshold: {}, Num predictions: {}, Matches: {}").format(score_threshold,
+        #                                                                len(filtered_boxes_and_classes),
+        #                                                                tps)
+
+        #print "Precision: {}, Recall: {}, FPs: {}".format(precision, recall, fps)
+        precisions.append(precision)
+
+    mAP = sum(precisions) / float(len(precisions))
+
+    return mAP
 
 def process_data(images, boxes=None):
     '''processes the data'''

@@ -138,11 +138,6 @@ def _main(args):
     total_num_bboxes = 0
     total_num_images = 0
 
-    ymaxmax = 0
-    xmaxmax = 0
-    g_ymaxmax = 0
-    g_xmaxmax = 0
-
     # "Dir" mode
     if input_mode == 0:
         for image_file in os.listdir(test_path):
@@ -182,12 +177,44 @@ def _main(args):
 
             # Rank boxes, scores and classes by score
 
+            font = ImageFont.truetype(font='font/FiraMono-Medium.otf', \
+                                      size=np.floor(3e-2 * image.size[1] + 0.5).astype('int32'))
+            thickness = (image.size[0] + image.size[1]) // 300
+
             for i, c in reversed(list(enumerate(out_classes))):
                 predicted_class = class_names[c]
                 box = out_boxes[i]
                 score = out_scores[i]
                 top, left, bottom, right = box
                 print predicted_class
+
+	        label = '{} {:.2f}'.format(predicted_class, score)
+
+                draw = ImageDraw.Draw(image)
+                label_size = draw.textsize(label, font)
+
+                top, left, bottom, right = box
+                top = max(0, np.floor(top + 0.5).astype('int32'))
+                left = max(0, np.floor(left + 0.5).astype('int32'))
+                bottom = min(image.size[1], np.floor(bottom + 0.5).astype('int32'))
+                right = min(image.size[0], np.floor(right + 0.5).astype('int32'))
+                print(label, (left, top), (right, bottom))
+
+                if top - label_size[1] >= 0:
+                    text_origin = np.array([left, top - label_size[1]])
+                else:
+                    text_origin = np.array([left, top + 1])
+
+                # My kingdom for a good redistributable image drawing library.
+                for i in range(thickness):
+                    draw.rectangle(
+                        [left + i, top + i, right - i, bottom - i],
+                        outline=colors[c])
+                draw.rectangle(
+                    [tuple(text_origin), tuple(text_origin + label_size)],
+                    fill=colors[c])
+                draw.text(text_origin, label, fill=(0, 0, 0), font=font)
+                del draw
 
             image.save(os.path.join(output_path, image_file), quality=90)
 
@@ -197,12 +224,11 @@ def _main(args):
         data = np.load(test_path) # custom data saved as a numpy file.
         input_images = data['images']
         input_boxes = data['boxes']
+        mAPs = []
 
         total_num_bboxes = 0
 
         for image, gt_boxes in zip(input_images, input_boxes):
-            if total_num_images > 10:
-                break
 
             height, width = image.shape[:2]
 
@@ -237,16 +263,6 @@ def _main(args):
             total_num_bboxes += len(out_boxes)
             total_num_images += 1 
 
-            for gt_box in gt_boxes:
-                xmin = gt_box[1]
-                ymin = gt_box[2]
-                xmax = gt_box[3]
-                ymax = gt_box[4]
-                if ymax > g_ymaxmax:
-                    g_ymaxmax = ymax
-                if xmax > g_xmaxmax:
-                    g_xmaxmax = xmax
-
             transformed_out_boxes = []
             for out_box in out_boxes:
                 new_box = [0,0,0,0]
@@ -255,11 +271,6 @@ def _main(args):
                 ymin = out_box[0]
                 ymax = out_box[2]
 
-                if ymax > ymaxmax:
-                    ymaxmax = ymax
-                if xmax > xmaxmax:
-                    xmaxmax = xmax
-
                 new_box[0] = xmin
                 new_box[1] = ymin
                 new_box[2] = xmax
@@ -267,13 +278,14 @@ def _main(args):
 
                 transformed_out_boxes.append(new_box)
 
-            mAP = data_utils.calculate_mAP(gt_boxes,
+            ap = data_utils.calculate_mAP(gt_boxes,
                                            transformed_out_boxes,
                                            out_scores,
                                            out_classes)
+            mAPs.append(ap)
 
-    print "Pseudo-dimensions ground truth:", g_xmaxmax, g_ymaxmax
-    print "Pseudo-dimensions predicted:", xmaxmax, ymaxmax
+        mAP = sum(mAPs) / float(len(mAPs))
+        print "mAP: {}".format(mAP)
 
     print('Found {} boxes in {} images'.format(total_num_bboxes, total_num_images))
 
