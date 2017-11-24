@@ -20,6 +20,7 @@ from yad2k.models.keras_yolo import (preprocess_true_boxes, yolo_body,
 from yad2k.utils.draw_boxes import draw_boxes
 
 sys.path.append("util")
+
 import data_utils
 
 # Args
