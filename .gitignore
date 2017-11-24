@@ -1,3 +1,5 @@
+# Scripts
+scripts/experiment/*
 # Ignore generated models, test images, and Darknet files.
 *.h5
 *.weights
