@@ -17,6 +17,13 @@ import tensorflow as tf
 from keras.models import Sequential
 from keras.layers import Lambda
 
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+plt.ioff()
+import seaborn as sns
+sns.set_style('whitegrid')
+
 import sys
 sys.path.append("util")
 import data_utils
@@ -58,14 +65,25 @@ parser.add_argument(
     '-s',
     '--score_threshold',
     type=float,
-    help='threshold for bounding box scores, default .3',
-    default=.3)
+    help='threshold for bounding box scores, default 0',
+    default=.001)
 parser.add_argument(
     '-iou',
     '--iou_threshold',
     type=float,
     help='threshold for non max suppression IOU, default .5',
     default=.5)
+parser.add_argument(
+    '-p',
+    '--plot_file',
+    help='File to save precision vs recall plot',
+    default="data/plots/pr.pdf")
+parser.add_argument(
+    '-nf',
+    '--num_frozen',
+    type=int,
+    help='Reference num frozen for printing',
+    default=-1)
 
 
 def _main(args):
@@ -105,7 +123,7 @@ def _main(args):
         'Mismatch between model and given anchor and class sizes. ' \
         'Specify matching anchors and classes with --anchors_path and ' \
         '--classes_path flags.'
-    print('{} model, anchors, and classes loaded.'.format(model_path))
+    #print('{} model, anchors, and classes loaded.'.format(model_path))
 
     # Check if model is fully convolutional, assuming channel last order.
     model_image_size = yolo_model.layers[0].input_shape[1:3]
@@ -224,7 +242,7 @@ def _main(args):
         data = np.load(test_path) # custom data saved as a numpy file.
         input_images = data['images']
         input_boxes = data['boxes']
-        mAPs = []
+        precisions_by_recall = {}
 
         total_num_bboxes = 0
 
@@ -278,18 +296,38 @@ def _main(args):
 
                 transformed_out_boxes.append(new_box)
 
-            ap = data_utils.calculate_mAP(gt_boxes,
+            precisions_by_recall = data_utils.get_pr_curve(gt_boxes,
                                            transformed_out_boxes,
                                            out_scores,
-                                           out_classes)
-            mAPs.append(ap)
+                                           out_classes,
+                                           precisions_by_recall)
 
-        mAP = sum(mAPs) / float(len(mAPs))
-        print "mAP: {}".format(mAP)
+    precisions = []
+    recalls = []
+    for r, ps in  precisions_by_recall.iteritems():
+        average_precisions = sum(ps) / float(len(ps))
+        precisions.append(average_precisions)
+        recalls.append(r)
+        print "Precision: {}, Recall: {}".format(average_precisions, r)
 
-    print('Found {} boxes in {} images'.format(total_num_bboxes, total_num_images))
+    plt.scatter(recalls, precisions)
+    plt.xlim(0,1)
+    plt.ylim(0,1)
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
+    plt.savefig(args.plot_file)
+    plt.clf()
+    
+    mAP = sum(precisions) / float(len(precisions))
+
+    print "{},{},{},{},{}".format(args.num_frozen,
+                                  mAP,
+                                  total_num_bboxes,
+                                  total_num_images,
+                                  args.score_threshold)
 
     sess.close()
+
 
 if __name__ == '__main__':
     _main(parser.parse_args())

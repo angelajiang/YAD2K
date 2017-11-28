@@ -70,14 +70,14 @@ def _main(args):
     num_frozen = int(os.path.expanduser(args.num_frozen))
 
     model_prefix += "-" + str(num_frozen) + "fr"
-    print "Training  model:", model_prefix
+    print "Training model:", model_prefix
 
     class_names = get_classes(classes_path)
     anchors = get_anchors(anchors_path)
 
 # Load data one checkpoint at a time
 
-    print "Loading data..."
+    print "Loading", data_path
     data = np.load(data_path) # custom data saved as a numpy file.
     #  has 2 arrays: an object array 'boxes' (variable length of boxes in each image)
     #  and an array of images 'images'
