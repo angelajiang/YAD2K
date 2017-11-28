@@ -242,7 +242,7 @@ def _main(args):
         data = np.load(test_path) # custom data saved as a numpy file.
         input_images = data['images']
         input_boxes = data['boxes']
-        precisions_by_recall = {}
+        prs_by_threshold = {}
 
         total_num_bboxes = 0
 
@@ -296,19 +296,13 @@ def _main(args):
 
                 transformed_out_boxes.append(new_box)
 
-            precisions_by_recall = data_utils.get_pr_curve(gt_boxes,
+            prs_by_threshold = data_utils.get_pr_curve(gt_boxes,
                                            transformed_out_boxes,
                                            out_scores,
                                            out_classes,
-                                           precisions_by_recall)
+                                           prs_by_threshold)
 
-    precisions = []
-    recalls = []
-    for r, ps in  precisions_by_recall.iteritems():
-        average_precisions = sum(ps) / float(len(ps))
-        precisions.append(average_precisions)
-        recalls.append(r)
-        print "Precision: {}, Recall: {}".format(average_precisions, r)
+    mAP, precisions, recalls = data_utils.get_mAP(prs_by_threshold)
 
     plt.scatter(recalls, precisions)
     plt.xlim(0,1)
@@ -318,7 +312,6 @@ def _main(args):
     plt.savefig(args.plot_file)
     plt.clf()
     
-    mAP = sum(precisions) / float(len(precisions))
 
     print "{},{},{},{},{}".format(args.num_frozen,
                                   mAP,

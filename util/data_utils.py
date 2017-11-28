@@ -45,12 +45,12 @@ def bb_intersection_over_union(box_A, box_B):
     # return the intersection over union value
     return iou
 
-def get_pr_curve(gt_boxes, p_boxes, p_scores, p_classes, precisions_by_recall):
+def get_pr_curve(gt_boxes, p_boxes, p_scores, p_classes, prs_by_threshold):
     # Assumes boxes, scores and classes are sorted by scores
 
     precisions = []
     recalls = []
-    thresholds = np.arange(0.0, 1.0, 0.01)
+    #thresholds = np.arange(0.0, 1.0, 0.01)
     thresholds = np.arange(0.0, 1.0, 0.1)
 
     for score_threshold in thresholds:
@@ -110,12 +110,55 @@ def get_pr_curve(gt_boxes, p_boxes, p_scores, p_classes, precisions_by_recall):
         #                                                                tps)
 
         #print "Precision: {}, Recall: {}, TPs: {}".format(precision, recall, tps)
+        '''
         r = round(recall, 1)
-        if r not in precisions_by_recall.keys():
-            precisions_by_recall[r] = []
-        precisions_by_recall[r].append(precision)
+        if r not in prs_by_threshold.keys():
+            prs_by_threshold[r] = []
+        prs_by_threshold[r].append(precision)
+        '''
+        if score_threshold not in prs_by_threshold.keys():
+            prs_by_threshold[score_threshold] = {"p":[], "r":[]}
+        prs_by_threshold[score_threshold]["p"].append(precision)
+        prs_by_threshold[score_threshold]["r"].append(recall)
 
-    return precisions_by_recall
+    return prs_by_threshold
+
+def get_mAP(prs_by_threshold):
+    precisions = []
+    recalls = []
+    precisions_by_recall = {}
+
+    # Calculate threshold-specific precision and recall values ACROSS frames
+    for threshold, prs in prs_by_threshold.iteritems():
+        ps = prs["p"]
+        rs = prs["r"]
+        avg_recall = round(sum(rs) / float(len(rs)), 2)
+        avg_precision = sum(ps) / float(len(ps))
+        if avg_recall not in precisions_by_recall:
+            precisions_by_recall[avg_recall] = []
+        precisions_by_recall[avg_recall].append(avg_precision)
+
+    for r, ps in  precisions_by_recall.iteritems():
+        #average_precisions = sum(ps) / float(len(ps))
+        sorted_ps = sorted(ps, reverse=True)
+        myp = 1
+        for p in sorted_ps:
+            if p == 1:
+                continue
+            else:
+                myp = p
+                break
+        precisions.append(myp)
+        recalls.append(r)
+    '''
+    for r, ps in  prs_by_threshold.iteritems():
+        average_precisions = sum(ps) / float(len(ps))
+        precisions.append(average_precisions)
+        recalls.append(r)
+        #print "Precision: {}, Recall: {}".format(max(ps), r)
+    '''
+    mAP = sum(precisions) / float(len(precisions))
+    return mAP, precisions, recalls
 
 def process_data(images, boxes=None):
     '''processes the data'''
