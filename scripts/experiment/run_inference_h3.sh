@@ -1,12 +1,21 @@
-cd ../../
-mkdir images/out/crowdai/0
-mkdir images/out/crowdai/40
-mkdir images/out/crowdai/70
-python test_yolo.py  -c /users/ahjiang/image-data/bb/udacity-od-crowdai/Udacity_object_dataset/crowdai-labels.txt -t /users/ahjiang/image-data/bb/udacity-od-crowdai/object-detection-crowdai-scaled/images/test -o images/out/crowdai/0 --model_path /users/ahjiang/src/YAD2K/data/models/exp/yolov2-model-0.6-0fr.h5
-#python test_yolo.py  -c /users/ahjiang/image-data/bb/udacity-od-crowdai/Udacity_object_dataset/crowdai-labels.txt -t /users/ahjiang/image-data/bb/udacity-od-crowdai/object-detection-crowdai-scaled/images/test -o images/out/crowdai/10 --model_path /users/ahjiang/src/YAD2K/data/models/exp/yolov2-model-0.6-10fr.h5
-#python test_yolo.py  -c /users/ahjiang/image-data/bb/udacity-od-crowdai/Udacity_object_dataset/crowdai-labels.txt -t /users/ahjiang/image-data/bb/udacity-od-crowdai/object-detection-crowdai-scaled/images/test -o images/out/crowdai/20 --model_path /users/ahjiang/src/YAD2K/data/models/exp/yolov2-model-0.6-20fr.h5
-#python test_yolo.py  -c /users/ahjiang/image-data/bb/udacity-od-crowdai/Udacity_object_dataset/crowdai-labels.txt -t /users/ahjiang/image-data/bb/udacity-od-crowdai/object-detection-crowdai-scaled/images/test -o images/out/crowdai/30 --model_path /users/ahjiang/src/YAD2K/data/models/exp/yolov2-model-0.6-30fr.h5
-python test_yolo.py  -c /users/ahjiang/image-data/bb/udacity-od-crowdai/Udacity_object_dataset/crowdai-labels.txt -t /users/ahjiang/image-data/bb/udacity-od-crowdai/object-detection-crowdai-scaled/images/test -o images/out/crowdai/40 --model_path /users/ahjiang/src/YAD2K/data/models/exp/yolov2-model-0.6-40fr.h5
-#python test_yolo.py  -c /users/ahjiang/image-data/bb/udacity-od-crowdai/Udacity_object_dataset/crowdai-labels.txt -t /users/ahjiang/image-data/bb/udacity-od-crowdai/object-detection-crowdai-scaled/images/test -o images/out/crowdai/50 --model_path /users/ahjiang/src/YAD2K/data/models/exp/yolov2-model-0.6-50fr.h5
-#python test_yolo.py  -c /users/ahjiang/image-data/bb/udacity-od-crowdai/Udacity_object_dataset/crowdai-labels.txt -t /users/ahjiang/image-data/bb/udacity-od-crowdai/object-detection-crowdai-scaled/images/test -o images/out/crowdai/60 --model_path /users/ahjiang/src/YAD2K/data/models/exp/yolov2-model-0.6-60fr.h5
-python test_yolo.py  -c /users/ahjiang/image-data/bb/udacity-od-crowdai/Udacity_object_dataset/crowdai-labels.txt -t /users/ahjiang/image-data/bb/udacity-od-crowdai/object-detection-crowdai-scaled/images/test -o images/out/crowdai/70 --model_path /users/ahjiang/src/YAD2K/data/models/exp/yolov2-model-0.6-70fr.h5
+labels="/datasets/BigLearning/ahjiang/bb/udacity-od-crowdai/Udacity_object_dataset/labels/crowdai-labels.txt"
+output="data/images/tmp/"
+model_prefix="data/models/exp/yolov2-model"
+input="/datasets/BigLearning/ahjiang/bb/npz/crowdai-test.npz"
+
+step=5
+n=74
+
+step2=0.05
+n2=0.5
+
+for i in `seq 0 $step $n`;
+do
+    for score in `seq 0.05 $step2 $n2`;
+    do
+        model_path=$model_prefix"-"$i"fr.h5"
+        #echo $model_path
+        #/users/ahjiang/src/yad2k/data/models/exp/yolov2-model-hybrid-0fr.h5
+        python -u run_test.py --num_frozen $i -c $labels -s $score -o $output --model_path $model_path --mode 1 -t $input
+    done
+done

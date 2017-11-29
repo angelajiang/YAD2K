@@ -1,4 +1,10 @@
-cd ../../
-python train.py  -d ~/image-data/bb/npz/object-detection-crowdai-0.6.npz -c /users/ahjiang/image-data/bb/udacity-od-crowdai/Udacity_object_dataset/crowdai-labels.txt -p data/models/exp/yolov2-model-0.6 -n 60
-python train.py  -d ~/image-data/bb/npz/object-detection-crowdai-0.6.npz -c /users/ahjiang/image-data/bb/udacity-od-crowdai/Udacity_object_dataset/crowdai-labels.txt -p data/models/exp/yolov2-model-0.6 -n 70
-python train.py  -d ~/image-data/bb/npz/object-detection-crowdai-0.6.npz -c /users/ahjiang/image-data/bb/udacity-od-crowdai/Udacity_object_dataset/crowdai-labels.txt -p data/models/exp/yolov2-model-0.6 -n 73
+step=5
+
+npz="/datasets/BigLearning/ahjiang/bb/npz/crowdai-truck-training-0.8.npz"
+labels="/datasets/BigLearning/ahjiang/bb/udacity-od-crowdai/Udacity_object_dataset/labels/truck-label.txt"
+outmodel="data/models/exp/yolov2-model-truck"
+
+for i in `seq 0 $step 70`;
+do
+    python -u run_train.py  -d $npz -c $labels -p $outmodel -n $i
+done

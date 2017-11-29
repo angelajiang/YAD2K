@@ -1,12 +1,29 @@
-cd ../../
-mkdir images/out/rouen/0
-mkdir images/out/rouen/40
-mkdir images/out/rouen/70
-python test_yolo.py  -c /users/ahjiang/image-data/bb/udacity-od-crowdai/Udacity_object_dataset/crowdai-labels.txt -t /users/ahjiang/image-data/bb/rouen/rouen_frames -o images/out/rouen/0 --model_path /users/ahjiang/src/YAD2K/data/models/exp/yolov2-model-0.6-0fr.h5
-#python test_yolo.py  -c /users/ahjiang/image-data/bb/udacity-od-crowdai/Udacity_object_dataset/crowdai-labels.txt -t /users/ahjiang/image-data/bb/rouen/rouen_frames -o images/out/rouen/10 --model_path /users/ahjiang/src/YAD2K/data/models/exp/yolov2-model-0.6-10fr.h5
-#python test_yolo.py  -c /users/ahjiang/image-data/bb/udacity-od-crowdai/Udacity_object_dataset/crowdai-labels.txt -t /users/ahjiang/image-data/bb/rouen/rouen_frames -o images/out/rouen/20 --model_path /users/ahjiang/src/YAD2K/data/models/exp/yolov2-model-0.6-20fr.h5
-#python test_yolo.py  -c /users/ahjiang/image-data/bb/udacity-od-crowdai/Udacity_object_dataset/crowdai-labels.txt -t /users/ahjiang/image-data/bb/rouen/rouen_frames -o images/out/rouen/30 --model_path /users/ahjiang/src/YAD2K/data/models/exp/yolov2-model-0.6-30fr.h5
-python test_yolo.py  -c /users/ahjiang/image-data/bb/udacity-od-crowdai/Udacity_object_dataset/crowdai-labels.txt -t /users/ahjiang/image-data/bb/rouen/rouen_frames -o images/out/rouen/40 --model_path /users/ahjiang/src/YAD2K/data/models/exp/yolov2-model-0.6-40fr.h5
-#python test_yolo.py  -c /users/ahjiang/image-data/bb/udacity-od-crowdai/Udacity_object_dataset/crowdai-labels.txt -t /users/ahjiang/image-data/bb/rouen/rouen_frames -o images/out/rouen/50 --model_path /users/ahjiang/src/YAD2K/data/models/exp/yolov2-model-0.6-50fr.h5
-#python test_yolo.py  -c /users/ahjiang/image-data/bb/udacity-od-crowdai/Udacity_object_dataset/crowdai-labels.txt -t /users/ahjiang/image-data/bb/rouen/rouen_frames -o images/out/rouen/60 --model_path /users/ahjiang/src/YAD2K/data/models/exp/yolov2-model-0.6-60fr.h5
-python test_yolo.py  -c /users/ahjiang/image-data/bb/udacity-od-crowdai/Udacity_object_dataset/crowdai-labels.txt -t /users/ahjiang/image-data/bb/rouen/rouen_frames -o images/out/rouen/70 --model_path /users/ahjiang/src/YAD2K/data/models/exp/yolov2-model-0.6-70fr.h5
+'''
+labels="/datasets/BigLearning/ahjiang/bb/udacity-od-crowdai/Udacity_object_dataset/labels/crowdai-labels.txt"
+output="data/images/tmp/"
+model_prefix="data/models/exp/yolov2-model"
+input="/datasets/BigLearning/ahjiang/bb/npz/crowdai-test.npz"
+'''
+
+labels="/datasets/BigLearning/ahjiang/bb/udacity-od-crowdai/Udacity_object_dataset/labels/car-label.txt"
+output="data/images/crowdai/car/"
+model_prefix="data/models/exp/yolov2-model-car"
+plot_prefix="data/plots/crowdai/car/pr"
+input="/datasets/BigLearning/ahjiang/bb/npz/crowdai-car-test.npz"
+
+step=5
+n=74
+
+for i in `seq 0 $step $n`;
+do
+    model_path=$model_prefix"-"$i"fr.h5"
+    plot_path=$plot_prefix"-"$i".pdf"
+    #python -u run_test.py --num_frozen $i -p $plot_path -c $labels -o $output --model_path $model_path --mode 1 -t $input
+done
+
+input="/datasets/BigLearning/ahjiang/bb/udacity-od-crowdai/object-detection-crowdai-scaled/images/test/"
+i=5
+model_path=$model_prefix"-"$i"fr.h5"
+plot_path=$plot_prefix"-"$i".pdf"
+python -u run_test.py --num_frozen $i -s 0.3 -p $plot_path -c $labels -o $output --model_path $model_path --mode 0 -t $input
+
