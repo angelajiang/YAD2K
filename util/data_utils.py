@@ -157,7 +157,12 @@ def get_mAP(prs_by_threshold):
         recalls.append(r)
         #print "Precision: {}, Recall: {}".format(max(ps), r)
     '''
-    mAP = sum(precisions) / float(len(precisions))
+    #mAP = sum(precisions) / float(len(precisions))
+    recalls.append(0)
+    precisions.append(max(precisions))
+    sorted_recalls = sorted(recalls)
+    sorted_precisions = [p for _,p in sorted(zip(recalls, precisions))]
+    mAP = np.trapz(sorted_precisions, sorted_recalls)
     return mAP, precisions, recalls
 
 def process_data(images, boxes=None):

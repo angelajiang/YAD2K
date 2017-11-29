@@ -66,7 +66,7 @@ parser.add_argument(
     '--score_threshold',
     type=float,
     help='threshold for bounding box scores, default 0',
-    default=.001)
+    default=0)
 parser.add_argument(
     '-iou',
     '--iou_threshold',
@@ -195,7 +195,7 @@ def _main(args):
 
             # Rank boxes, scores and classes by score
 
-            font = ImageFont.truetype(font='font/FiraMono-Medium.otf', \
+            font = ImageFont.truetype(font='data/font/FiraMono-Medium.otf', \
                                       size=np.floor(3e-2 * image.size[1] + 0.5).astype('int32'))
             thickness = (image.size[0] + image.size[1]) // 300
 
@@ -311,7 +311,6 @@ def _main(args):
     plt.ylabel("Precision")
     plt.savefig(args.plot_file)
     plt.clf()
-    
 
     print "{},{},{},{},{}".format(args.num_frozen,
                                   mAP,
