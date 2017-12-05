@@ -9,7 +9,7 @@ from random import shuffle
 
 from lxml import etree
 
-def split(split_ratio, annotations_path):
+def split(split_ratio, annotations_path, shuffle_frames):
 
     assert split_ratio >= 0 and split_ratio <= 1, 'split_ratio should be between 0 and 1'
 
@@ -20,9 +20,10 @@ def split(split_ratio, annotations_path):
         if os.path.isfile(file_path) and the_file.endswith(".xml"):
             fnames.append(the_file)
 
-    num_images = int(split_ratio * len(fnames))
+    if shuffle_frames:
+        shuffle(fnames)
 
-    print("Returning %d images" % num_images)
+    num_images = int(split_ratio * len(fnames))
 
     return fnames[:num_images]
 
@@ -42,7 +43,7 @@ def create_npz(images_path, annotations_path, labels_path, dest_path,
             label = line.rstrip()
             label_indices[label] = i
 
-    annotations_to_include = split(split_ratio, annotations_path)
+    annotations_to_include = split(split_ratio, annotations_path, shuffle_frames)
 
     # load images
     images = []
@@ -61,8 +62,6 @@ def create_npz(images_path, annotations_path, labels_path, dest_path,
             height_scale = target_height / float(height) 
 
             img = cv2.resize(img, (target_height, target_width))
-            print(img)
-            sys.exit()
 
             try:
                 (b, g, r)=cv2.split(img)
@@ -70,13 +69,12 @@ def create_npz(images_path, annotations_path, labels_path, dest_path,
             except:
                 print(i)
 
-            images.append(img)
 
             # Parse annotations
-            image_labels.append([])  
-
+            cur_images_labels = []
             tree = etree.parse(filename)
             root = tree.getroot()
+            has_box = False
 
             for object in root.findall('object'):
 
@@ -86,6 +84,8 @@ def create_npz(images_path, annotations_path, labels_path, dest_path,
                 # Only include BBs from the labels_set
                 if labels_set and class_str not in labels_set:
                     continue
+
+                has_box = True
                 
                 class_index = label_indices[class_str]
                 boxConfig = []
@@ -97,9 +97,18 @@ def create_npz(images_path, annotations_path, labels_path, dest_path,
                 boxConfig.append(float(box.find('xmax').text) * scale * width_scale)
                 boxConfig.append(float(box.find('ymax').text) * scale * height_scale)
 
-                image_labels[i].append(boxConfig)
+                assert boxConfig[0] <= width
+                assert boxConfig[2] <= width
+                assert boxConfig[1] <= height
+                assert boxConfig[3] <= height
 
-            i += 1
+                cur_images_labels.append(boxConfig)
+
+            if has_box:
+                images.append(img)
+                image_labels.append(cur_images_labels)
+                i += 1
+
             if debug and i == 10:
                 break
     
@@ -126,6 +135,6 @@ def create_npz(images_path, annotations_path, labels_path, dest_path,
     print("Saving %d images" % len(images))
 
     #save dataset
-    np.savez(dest_path, images=images, boxes=image_labels)
+    #np.savez(dest_path, images=images, boxes=image_labels)
     print('Data saved: ', dest_path + ".npz")
     return dest_path
