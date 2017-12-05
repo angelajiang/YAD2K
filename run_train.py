@@ -247,14 +247,14 @@ def train(class_names, anchors, image_data, boxes, detectors_mask,
               #epochs=1,
               callbacks=[logging, checkpoint, early_stopping])
 
-    sess = K.get_session()
-    graph_def = sess.graph.as_graph_def()
-    tf.train.write_graph(graph_def,
-                         logdir='.',
-                         name=model_prefix+".pb",
-                         as_text=False)
-    saver = tf.train.Saver()
-    saver.save(sess, model_prefix+'.ckpt', write_meta_graph=True)
+    #sess = K.get_session()
+    #graph_def = sess.graph.as_graph_def()
+    #tf.train.write_graph(graph_def,
+    #                     logdir='.',
+    #                     name=model_prefix+".pb",
+    #                     as_text=False)
+    #saver = tf.train.Saver()
+    #saver.save(sess, model_prefix+'.ckpt', write_meta_graph=True)
 
     model_body.save_weights(model_prefix+"_weights.h5")
     save_model(model_body, model_prefix+".h5", overwrite=True)

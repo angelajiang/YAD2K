@@ -14,7 +14,8 @@ if __name__ == "__main__":
     merge_example = False
     crowdai_training_example = False
     crowdai_test_example = False
-    crowdai_car_example = True
+    crowdai_pedestrian_example = False
+    crowdai_pedestrian_augment_example = True
 
     if merge_example:
         # CrowdAI
@@ -54,7 +55,7 @@ if __name__ == "__main__":
                                    dataset_path_base,
                                    'labels.txt')
         split2 = 0.1
-        dest_file = 'npz/youtube-bb-car-car-tmp'
+        dest_file = 'npz/youtube-bb-pedestrian-pedestrian-tmp'
         dest_path = os.path.join(data_path_base, dest_file)
 
         npz_path_2 = vnpz.create_npz(images_path,
@@ -127,13 +128,13 @@ if __name__ == "__main__":
                         debug = False,
                         shuffle_frames = False)
 
-    elif crowdai_car_example:
+    elif crowdai_pedestrian_example:
 
         # Training
-        dest_file = 'npz/crowdai-car-training-0.8'
+        dest_file = 'npz/crowdai-pedestrian-training'
         labels_set = set()
-        labels_set.add("car")
-        labels_file = "car-label.txt"
+        labels_set.add("pedestrian")
+        labels_file = "pedestrian-label.txt"
 
         dataset_path_base = 'udacity-od-crowdai/object-detection-crowdai-scaled/'
         labels_path = os.path.join(data_path_base,
@@ -146,7 +147,7 @@ if __name__ == "__main__":
         images_path = os.path.join(data_path_base,
                                    dataset_path_base,
                                    'images/training')
-        split = 0.8
+        split = 1
         dest_path = os.path.join(data_path_base, dest_file)
 
         vnpz.create_npz(images_path,
@@ -162,7 +163,7 @@ if __name__ == "__main__":
                         shuffle_frames = False)
 
         # Test
-        dest_file = 'npz/crowdai-car-test'
+        dest_file = 'npz/crowdai-pedestrian-test'
         dest_path = os.path.join(data_path_base, dest_file)
 
         annotations_path = os.path.join(data_path_base,
@@ -185,3 +186,68 @@ if __name__ == "__main__":
                         debug = False,
                         shuffle_frames = False)
 
+
+    elif crowdai_pedestrian_augment_example:
+
+        # CrowdAI pedestrian dataset
+        dest_file = 'npz/crowdai-pedestrian-training'
+        labels_set = set()
+        labels_set.add("pedestrian")
+        labels_file = "pedestrian-label.txt"
+
+        dataset_path_base = 'udacity-od-crowdai/object-detection-crowdai-scaled/'
+        labels_path = os.path.join(data_path_base,
+                                   'udacity-od-crowdai/Udacity_object_dataset/labels/',
+                                   labels_file)
+
+        annotations_path = os.path.join(data_path_base,
+                                        dataset_path_base,
+                                        'annotations/training')
+        images_path = os.path.join(data_path_base,
+                                   dataset_path_base,
+                                   'images/training')
+        split = 1
+        dest_path = os.path.join(data_path_base, dest_file)
+
+        #npz_path_1 = vnpz.create_npz(images_path,
+        #                annotations_path,
+        #                labels_path,
+        #                dest_path,
+        #                target_width = target_width,
+        #                target_height = target_height,
+        #                split_ratio = split,
+        #                labels_set = labels_set,
+        #                scale = 0.5,
+        #                debug = False,
+        #                shuffle_frames = False)
+
+        npz_path_1 = "/datasets/BigLearning/ahjiang/bb/npz/crowdai-pedestrian-training"
+
+        # Caltech pedestrian dataset
+        dataset_path_base = 'caltech-ped-data'
+        annotations_path = os.path.join(data_path_base,
+                                        dataset_path_base,
+                                        'annotations')
+        images_path = os.path.join(data_path_base,
+                                   dataset_path_base,
+                                   'images')
+        split2 = 0.5
+        dest_file = 'npz/caltech-pedestrian-training-'+str(split2)
+        dest_path = os.path.join(data_path_base, dest_file)
+
+        npz_path_2 = vnpz.create_npz(images_path,
+                        annotations_path,
+                        labels_path,
+                        dest_path,
+                        target_width = target_width,
+                        target_height = target_height,
+                        split_ratio = split2,
+                        debug = False,
+                        shuffle_frames = False)
+
+        # Merge
+        dest_file = 'npz/crowdai-caltech-pedestrian-training'
+        dest_path = os.path.join(data_path_base, dest_file)
+        npz_list = [npz_path_1 + ".npz", npz_path_2 + ".npz"]
+        mnpz.merge(npz_list, dest_path)
+    

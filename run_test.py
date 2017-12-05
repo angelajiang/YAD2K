@@ -282,6 +282,7 @@ def _main(args):
             total_num_images += 1 
 
             transformed_out_boxes = []
+
             for out_box in out_boxes:
                 new_box = [0,0,0,0]
                 xmin = out_box[1]
