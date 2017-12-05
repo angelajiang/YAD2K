@@ -1,5 +1,3 @@
-# Scripts
-scripts/experiment/*
 # Ignore generated models, test images, and Darknet files.
 *.h5
 *.weights
@@ -11,6 +9,7 @@ images/out/*
 model_data/*_anchors.txt
 data/checkpoint
 data/models
+data/
 
 # Tensorboard training logs
 logs/
