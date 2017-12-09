@@ -26,7 +26,7 @@ sns.set_style('whitegrid')
 
 import sys
 sys.path.append("util")
-import data_utils
+import ml_utils
 
 from yad2k.models.keras_yolo import yolo_head, yolo_eval, yolo_post_process
 
@@ -74,6 +74,12 @@ parser.add_argument(
     help='threshold for non max suppression IOU, default .5',
     default=.5)
 parser.add_argument(
+    '-map',
+    '--map_iou_threshold',
+    type=float,
+    help='threshold for mAP, default .5',
+    default=.5)
+parser.add_argument(
     '-p',
     '--plot_file',
     help='File to save precision vs recall plot',
@@ -84,6 +90,12 @@ parser.add_argument(
     type=int,
     help='Reference num frozen for printing',
     default=-1)
+parser.add_argument(
+    '-ci',
+    '--class_index',
+    type=int,
+    help='Target class index to transform into 0s',
+    default=0)
 
 
 def _main(args):
@@ -204,10 +216,9 @@ def _main(args):
                 box = out_boxes[i]
                 score = out_scores[i]
                 top, left, bottom, right = box
-                print predicted_class
-
-	        label = '{} {:.2f}'.format(predicted_class, score)
-
+                print(predicted_class)
+                
+                label = '{} {:.2f}'.format(predicted_class, score)
                 draw = ImageDraw.Draw(image)
                 label_size = draw.textsize(label, font)
 
@@ -239,12 +250,19 @@ def _main(args):
     # "NPZ" mode
     elif input_mode == 1:
         # 2 modes: 1) "dir" inference from dir 2) "npz" inference and mAP from bounding boxes
-        data = np.load(test_path) # custom data saved as a numpy file.
+        data = np.load(test_path, encoding='bytes') # custom data saved as a numpy file.
         input_images = data['images']
         input_boxes = data['boxes']
-        prs_by_threshold = {}
+
+        output_boxes = []
+        output_scores = []
+        output_classes = []
 
         total_num_bboxes = 0
+
+        num_bboxes = sum([len(box) for box in input_boxes])
+        print "No. images: {}".format(len(input_images))
+        print "No. boxes: {}".format(num_bboxes)
 
         for image, gt_boxes in zip(input_images, input_boxes):
 
@@ -297,13 +315,29 @@ def _main(args):
 
                 transformed_out_boxes.append(new_box)
 
-            prs_by_threshold = data_utils.get_pr_curve(gt_boxes,
-                                           transformed_out_boxes,
-                                           out_scores,
-                                           out_classes,
-                                           prs_by_threshold)
+            output_boxes.append(transformed_out_boxes)
+            output_scores.append(out_scores)
+            output_classes.append(out_classes)
 
-    mAP, precisions, recalls = data_utils.get_mAP(prs_by_threshold)
+        # Hack for running YOLO as a binary classifier
+        # Only include boxes of the single target class 
+        # Transform the box index to be 0 
+        transformed_input_boxes = []
+        for boxes in input_boxes:
+            boxes_for_image = []
+            for box in boxes:
+                new_box = list(box)
+                new_box[0] = args.class_index
+                boxes_for_image.append(new_box)
+            transformed_input_boxes.append(boxes_for_image)
+
+        prs_by_threshold = ml_utils.get_pr_curve(transformed_input_boxes,
+                                                 output_boxes,
+                                                 output_scores,
+                                                 output_classes,
+                                                 iou_threshold=args.map_iou_threshold)
+
+    mAP, precisions, recalls = ml_utils.get_mAP(prs_by_threshold)
 
     plt.scatter(recalls, precisions)
     plt.xlim(0,1)
@@ -313,11 +347,11 @@ def _main(args):
     plt.savefig(args.plot_file)
     plt.clf()
 
-    print "{},{},{},{},{}".format(args.num_frozen,
+    print("%d,%.6g,%d,%d,%.2g" % (args.num_frozen,
                                   mAP,
                                   total_num_bboxes,
                                   total_num_images,
-                                  args.score_threshold)
+                                  float(args.score_threshold)))
 
     sess.close()
 

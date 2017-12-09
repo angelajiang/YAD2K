@@ -135,6 +135,6 @@ def create_npz(images_path, annotations_path, labels_path, dest_path,
     print("Saving %d images" % len(images))
 
     #save dataset
-    #np.savez(dest_path, images=images, boxes=image_labels)
+    np.savez(dest_path, images=images, boxes=image_labels)
     print('Data saved: ', dest_path + ".npz")
     return dest_path

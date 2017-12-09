@@ -70,20 +70,20 @@ def _main(args):
     num_frozen = int(os.path.expanduser(args.num_frozen))
 
     model_prefix += "-" + str(num_frozen) + "fr"
-    print "Training model:", model_prefix
+    print("Training model:", model_prefix)
 
     class_names = get_classes(classes_path)
     anchors = get_anchors(anchors_path)
 
 # Load data one checkpoint at a time
 
-    print "Loading", data_path
+    print("Loading", data_path)
     data = np.load(data_path) # custom data saved as a numpy file.
     #  has 2 arrays: an object array 'boxes' (variable length of boxes in each image)
     #  and an array of images 'images'
-    print "Data loaded."
+    print("Data loaded.")
 
-    image_data, boxes = data_utils.process_data(data['images'], data['boxes'])
+    image_data, boxes = data_utils.process_data(data['images'], data['boxes'], dim=608)
 
     anchors = YOLO_ANCHORS
 
@@ -140,7 +140,7 @@ def get_detector_mask(boxes, anchors):
     detectors_mask = [0 for i in range(len(boxes))]
     matching_true_boxes = [0 for i in range(len(boxes))]
     for i, box in enumerate(boxes):
-        detectors_mask[i], matching_true_boxes[i] = preprocess_true_boxes(box, anchors, [416, 416])
+        detectors_mask[i], matching_true_boxes[i] = preprocess_true_boxes(box, anchors, [608, 608])
 
     return np.array(detectors_mask), np.array(matching_true_boxes)
 
@@ -162,11 +162,11 @@ def create_model(anchors, class_names, load_pretrained=True, num_frozen=0):
 
     '''
 
-    detectors_mask_shape = (13, 13, 5, 1)
-    matching_boxes_shape = (13, 13, 5, 5)
+    detectors_mask_shape = (19, 19, 5, 1)
+    matching_boxes_shape = (19, 19, 5, 5)
 
     # Create model input layers.
-    image_input = Input(shape=(416, 416, 3))
+    image_input = Input(shape=(608, 608, 3))
     boxes_input = Input(shape=(None, 5))
     detectors_mask_input = Input(shape=detectors_mask_shape)
     matching_boxes_input = Input(shape=matching_boxes_shape)
@@ -177,10 +177,10 @@ def create_model(anchors, class_names, load_pretrained=True, num_frozen=0):
 
     if load_pretrained:
         # Save topless yolo:
-        topless_yolo_path = os.path.join('data', 'model_data', 'yolo_topless.h5')
+        topless_yolo_path = os.path.join('data', 'model_data', 'yolo_topless2.h5')
         if not os.path.exists(topless_yolo_path):
             print("CREATING TOPLESS WEIGHTS FILE")
-            yolo_path = os.path.join('data', 'model_data', 'yolo.h5')
+            yolo_path = os.path.join('data', 'model_data', 'yolo2.h5')
             model_body = load_model(yolo_path)
             model_body = Model(model_body.inputs, model_body.layers[-2].output)
             model_body.save_weights(topless_yolo_path)
@@ -188,10 +188,10 @@ def create_model(anchors, class_names, load_pretrained=True, num_frozen=0):
 
     num_layers = len(topless_yolo.layers)
     if num_frozen > num_layers:
-        print "Cannot freeze", num_frozen, "/", num_layers, "layers"
+        print("Cannot freeze", num_frozen, "/", num_layers, "layers")
         sys.exit()
 
-    print "Freezing", num_frozen, "/", num_layers, "layers"
+    print("Freezing", num_frozen, "/", num_layers, "layers")
     for i, layer in enumerate(topless_yolo.layers):
         if i < num_frozen:
             layer.trainable = False
