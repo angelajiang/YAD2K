@@ -131,7 +131,6 @@ if __name__ == "__main__":
     elif crowdai_pedestrian_example:
 
         # Training
-        dest_file = 'npz/crowdai-pedestrian-training'
         labels_set = set()
         labels_set.add("pedestrian")
         labels_file = "pedestrian-label.txt"
@@ -147,7 +146,9 @@ if __name__ == "__main__":
         images_path = os.path.join(data_path_base,
                                    dataset_path_base,
                                    'images/training')
-        split = 1
+        split = 0.4
+        dest_file = 'npz/crowdai-pedestrian-training-' + str(split)
+
         dest_path = os.path.join(data_path_base, dest_file)
 
         vnpz.create_npz(images_path,
@@ -174,17 +175,17 @@ if __name__ == "__main__":
                                    'images/test')
         split = 1
 
-        vnpz.create_npz(images_path,
-                        annotations_path,
-                        labels_path,
-                        dest_path,
-                        target_width = target_width,
-                        target_height = target_height,
-                        split_ratio = split,
-                        labels_set = labels_set,
-                        scale = 0.5,
-                        debug = False,
-                        shuffle_frames = False)
+        #vnpz.create_npz(images_path,
+        #                annotations_path,
+        #                labels_path,
+        #                dest_path,
+        #                target_width = target_width,
+        #                target_height = target_height,
+        #                split_ratio = split,
+        #                labels_set = labels_set,
+        #                scale = 0.5,
+        #                debug = False,
+        #                shuffle_frames = False)
 
 
     elif crowdai_pedestrian_augment_example:
@@ -209,17 +210,17 @@ if __name__ == "__main__":
         split = 1
         dest_path = os.path.join(data_path_base, dest_file)
 
-        #npz_path_1 = vnpz.create_npz(images_path,
-        #                annotations_path,
-        #                labels_path,
-        #                dest_path,
-        #                target_width = target_width,
-        #                target_height = target_height,
-        #                split_ratio = split,
-        #                labels_set = labels_set,
-        #                scale = 0.5,
-        #                debug = False,
-        #                shuffle_frames = False)
+        npz_path_1 = vnpz.create_npz(images_path,
+                        annotations_path,
+                        labels_path,
+                        dest_path,
+                        target_width = target_width,
+                        target_height = target_height,
+                        split_ratio = split,
+                        labels_set = labels_set,
+                        scale = 0.5,
+                        debug = False,
+                        shuffle_frames = False)
 
         npz_path_1 = "/datasets/BigLearning/ahjiang/bb/npz/crowdai-pedestrian-training"
 
