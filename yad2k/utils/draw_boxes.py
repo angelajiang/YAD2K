@@ -5,6 +5,11 @@ import random
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
+from itertools import compress
+
+import sys
+sys.path.append("util")
+from ml_utils import bb_intersection_over_union
 
 
 def get_colors_for_classes(num_classes):
@@ -14,7 +19,7 @@ def get_colors_for_classes(num_classes):
             len(get_colors_for_classes.colors) == num_classes):
         return get_colors_for_classes.colors
 
-    hsv_tuples = [(x / num_classes, 1., 1.) for x in range(num_classes)]
+    hsv_tuples = [(float(x) / num_classes, 1., 1.) for x in range(num_classes)]
     colors = list(map(lambda x: colorsys.hsv_to_rgb(*x), hsv_tuples))
     colors = list(
         map(lambda x: (int(x[0] * 255), int(x[1] * 255), int(x[2] * 255)),
@@ -99,3 +104,47 @@ def draw_box(image, box, box_class, color, score=None):
 
     return image
 
+def draw_boxes_advanced(image, gt_boxes, gt_classes,
+                        p_boxes, p_classes, p_scores, class_names,
+                        score_threshold=0.0,  iou_threshold=0.5):
+
+    image = Image.fromarray(np.floor(image * 255 + 0.5).astype('uint8'))
+
+    tp_color, fn_color, fp_color  = get_colors_for_classes(3) #TP, FN, FP
+
+    # Filter for boxes where score is above score_threshold
+    boxes_classes_and_scores = list(zip(p_boxes, p_classes, p_scores))
+    score_filter = np.array([True if score >= score_threshold \
+                                  else False \
+                                  for score in p_scores])
+    filtered_data = list(compress(boxes_classes_and_scores, score_filter))
+
+    # Edge case: if there are no boxes, increment nothing
+    if len(gt_boxes) == 0:
+        for box, box_class, score in filtered_data:
+            image = draw_box(image, box, "fp-"+class_names[box_class], fp_color, score)
+
+    # Edge case: if no boxes are discovered, increment false negatives
+    elif len(filtered_data) == 0:
+        for gt_box, gt_class in zip(gt_boxes, gt_classes):
+            image = draw_box(image, gt_box, "fn-"+class_names[gt_class], fn_color)
+    else:
+        boxes_available = [1] * len(filtered_data)
+        # Greedily assign predicted boxes to gt_boxes
+        for gt_box, gt_class in zip(gt_boxes, gt_classes):
+            detected = False
+            # Predicted box must have high IOU with GT and be available
+            for i, (p_box, p_class, p_score) in enumerate(filtered_data):
+                iou = bb_intersection_over_union(gt_box, p_box)
+                if iou >= iou_threshold and p_class == gt_class and boxes_available[i]:
+                    boxes_available[i] = 0
+                    detected = True
+                    image = draw_box(image, p_box, "tp-"+class_names[p_class], tp_color, p_score)
+                    break
+            if not detected:
+                image = draw_box(image, gt_box, "fn-"+class_names[gt_class], fn_color)
+        for i, is_available in enumerate(boxes_available):
+            if is_available:
+                p_box, p_class, p_score = filtered_data[i]
+                image = draw_box(image, p_box, "fp-"+class_names[p_class], fp_color, p_score)
+    return np.array(image)

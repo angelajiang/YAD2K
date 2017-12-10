@@ -9,9 +9,11 @@ import random
 
 import numpy as np
 import keras
+import PIL
 from keras import backend as K
 from keras.models import load_model, save_model
 from PIL import Image, ImageDraw, ImageFont
+from yad2k.utils.draw_boxes import draw_boxes, draw_boxes_advanced
 import tensorflow as tf
 
 from keras.models import Sequential
@@ -72,7 +74,7 @@ parser.add_argument(
     '--iou_threshold',
     type=float,
     help='threshold for non max suppression IOU, default .5',
-    default=.5)
+    default=.3)
 parser.add_argument(
     '-map',
     '--map_iou_threshold',
@@ -87,7 +89,7 @@ parser.add_argument(
 parser.add_argument(
     '-nf',
     '--num_frozen',
-    type=int,
+    type=float,
     help='Reference num frozen for printing',
     default=-1)
 parser.add_argument(
@@ -161,7 +163,7 @@ def _main(args):
                                                anchors,
                                                len(class_names),
                                                input_image_shape,
-                                               args.score_threshold,
+                                               0.3,
                                                args.iou_threshold)
 
 
@@ -260,11 +262,7 @@ def _main(args):
 
         total_num_bboxes = 0
 
-        num_bboxes = sum([len(box) for box in input_boxes])
-        print "No. images: {}".format(len(input_images))
-        print "No. boxes: {}".format(num_bboxes)
-
-        for image, gt_boxes in zip(input_images, input_boxes):
+        for i, (image, gt_boxes) in enumerate(zip(input_images, input_boxes)):
 
             height, width = image.shape[:2]
 
@@ -288,6 +286,11 @@ def _main(args):
             image_data /= 255.
             image_data = np.expand_dims(image_data, 0)  # Add batch dimension.
 
+            image_data_orig = np.array(image, dtype='float32')
+
+            image_data_orig /= 255.
+            image_data_orig = np.expand_dims(image_data_orig, 0)  # Add batch dimension.
+
             out_boxes, out_scores, out_classes = sess.run(
                 [boxes, scores, classes],
                 feed_dict={
@@ -299,8 +302,8 @@ def _main(args):
             total_num_bboxes += len(out_boxes)
             total_num_images += 1 
 
+            # Transform out_box ordering to NPZ box ordering
             transformed_out_boxes = []
-
             for out_box in out_boxes:
                 new_box = [0,0,0,0]
                 xmin = out_box[1]
@@ -315,13 +318,46 @@ def _main(args):
 
                 transformed_out_boxes.append(new_box)
 
+            transformed_gt_boxes = []
+            gt_classes = []
+            gt_scores = [1] * len(gt_boxes)
+            for gt in gt_boxes:
+                new_box = [0,0,0,0]
+                xmin = gt[1]
+                ymin = gt[2]
+                xmax = gt[3]
+                ymax = gt[4]
+                c = int(gt[0])
+                
+                new_box[0] = ymin
+                new_box[1] = xmin
+                new_box[2] = ymax
+                new_box[3] = xmax
+
+                transformed_gt_boxes.append(new_box)
+                gt_classes.append(c)
+
             output_boxes.append(transformed_out_boxes)
             output_scores.append(out_scores)
             output_classes.append(out_classes)
 
+            # Draw TP, FP, FNs on image
+            image_with_boxes = draw_boxes_advanced(image_data_orig[0],
+                                                      transformed_gt_boxes,
+                                                      gt_classes,
+                                                      out_boxes,
+                                                      out_classes,
+                                                      out_scores,
+                                                      class_names,
+                                                      score_threshold=args.score_threshold,
+                                                      iou_threshold=args.map_iou_threshold)
+
+            full_image  = PIL.Image.fromarray(image_with_boxes)
+            full_image.save(os.path.join(output_path, str(i)+'.png'))
+
+
         # Hack for running YOLO as a binary classifier
-        # Only include boxes of the single target class 
-        # Transform the box index to be 0 
+        # Map label indices in NPZ to label indices of trained model
         transformed_input_boxes = []
         for boxes in input_boxes:
             boxes_for_image = []
