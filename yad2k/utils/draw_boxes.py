@@ -25,7 +25,6 @@ def get_colors_for_classes(num_classes):
     get_colors_for_classes.colors = colors  # Save colors for future calls.
     return colors
 
-
 def draw_boxes(image, boxes, box_classes, class_names, scores=None):
     """Draw bounding boxes on image.
 
@@ -42,47 +41,61 @@ def draw_boxes(image, boxes, box_classes, class_names, scores=None):
     Returns:
         A copy of `image` modified with given bounding boxes.
     """
-    image = Image.fromarray(np.floor(image * 255 + 0.5).astype('uint8'))
 
-    font = ImageFont.truetype(
-        font='data/font/FiraMono-Medium.otf',
-        size=np.floor(3e-2 * image.size[1] + 0.5).astype('int32'))
-    thickness = (image.size[0] + image.size[1]) // 300
+    image = Image.fromarray(np.floor(image * 255 + 0.5).astype('uint8'))
 
     colors = get_colors_for_classes(len(class_names))
 
     for i, c in list(enumerate(box_classes)):
         box_class = class_names[c]
         box = boxes[i]
+        color = colors[c]
         if isinstance(scores, np.ndarray):
-            score = scores[i]
+            score = float(scores[i])
             label = '{} {:.2f}'.format(box_class, score)
+            image = draw_box(image, box, box_class, c, score)
         else:
             label = '{}'.format(box_class)
-
-        draw = ImageDraw.Draw(image)
-        label_size = draw.textsize(label, font)
-
-        top, left, bottom, right = box
-        top = max(0, np.floor(top + 0.5).astype('int32'))
-        left = max(0, np.floor(left + 0.5).astype('int32'))
-        bottom = min(image.size[1], np.floor(bottom + 0.5).astype('int32'))
-        right = min(image.size[0], np.floor(right + 0.5).astype('int32'))
-        print(label, (left, top), (right, bottom))
-
-        if top - label_size[1] >= 0:
-            text_origin = np.array([left, top - label_size[1]])
-        else:
-            text_origin = np.array([left, top + 1])
-
-        # My kingdom for a good redistributable image drawing library.
-        for i in range(thickness):
-            draw.rectangle(
-                [left + i, top + i, right - i, bottom - i], outline=colors[c])
-        draw.rectangle(
-            [tuple(text_origin), tuple(text_origin + label_size)],
-            fill=colors[c])
-        draw.text(text_origin, label, fill=(0, 0, 0), font=font)
-        del draw
+            image = draw_box(image, box, box_class, color)
 
     return np.array(image)
+
+def draw_box(image, box, box_class, color, score=None):
+
+    font = ImageFont.truetype(
+        font='data/font/FiraMono-Medium.otf',
+        size=np.floor(3e-2 * image.size[1] + 0.5).astype('int32'))
+    thickness = (image.size[0] + image.size[1]) // 300
+
+    if score:
+        label = '{} {:.2f}'.format(box_class, score)
+    else:
+        label = '{}'.format(box_class)
+
+    draw = ImageDraw.Draw(image)
+    label_size = draw.textsize(label, font)
+
+    top, left, bottom, right = box
+    top = max(0, np.floor(top + 0.5).astype('int32'))
+    left = max(0, np.floor(left + 0.5).astype('int32'))
+    bottom = min(image.size[1], np.floor(bottom + 0.5).astype('int32'))
+    right = min(image.size[0], np.floor(right + 0.5).astype('int32'))
+    print(label, (left, top), (right, bottom))
+
+    if top - label_size[1] >= 0:
+        text_origin = np.array([left, top - label_size[1]])
+    else:
+        text_origin = np.array([left, top + 1])
+
+    # My kingdom for a good redistributable image drawing library.
+    for i in range(thickness):
+        draw.rectangle(
+            [left + i, top + i, right - i, bottom - i], outline=color)
+    draw.rectangle(
+        [tuple(text_origin), tuple(text_origin + label_size)],
+        fill=color)
+    draw.text(text_origin, label, fill=(0, 0, 0), font=font)
+    del draw
+
+    return image
+
