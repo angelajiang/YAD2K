@@ -2,16 +2,17 @@ import PIL
 import numpy as np
 
 
-def process_data(images, boxes=None, dim=416):
+def process_data(images, orig_width, orig_height, boxes=None, dim=416):
     '''processes the data'''
-    images = [PIL.Image.fromarray(i) for i in images]
-    orig_size = np.array([images[0].width, images[0].height])
+    images = (PIL.Image.fromarray(i) for i in images)
+    #orig_size = np.array([images[0].width, images[0].height])
+    orig_size = np.array([orig_width, orig_height])
     orig_size = np.expand_dims(orig_size, axis=0)
 
     # Image preprocessing.
-    processed_images = [i.resize((dim, dim), PIL.Image.BICUBIC) for i in images]
-    processed_images = [np.array(image, dtype=np.float) for image in processed_images]
-    processed_images = [image/255. for image in processed_images]
+    processed_images = (i.resize((dim, dim), PIL.Image.BICUBIC) for i in images)
+    processed_images = (np.array(image, dtype=np.float) for image in processed_images)
+    processed_images = (image/255. for image in processed_images)
 
     if boxes is not None:
         # Box preprocessing.
@@ -40,6 +41,6 @@ def process_data(images, boxes=None, dim=416):
                 zero_padding = np.zeros( (max_boxes-boxz.shape[0], 5), dtype=np.float32)
                 boxes[i] = np.vstack((boxz, zero_padding))
 
-        return np.array(processed_images), np.array(boxes)
+        return processed_images, np.array(boxes)
     else:
-        return np.array(processed_images)
+        return processed_images

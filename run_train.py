@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import PIL
 import tensorflow as tf
+from itertools import tee
 from keras import backend as K
 from keras.layers import Input, Lambda, Conv2D
 from keras.models import load_model, Model, save_model
@@ -75,7 +76,7 @@ def _main(args):
     class_names = get_classes(classes_path)
     anchors = get_anchors(anchors_path)
 
-# Load data one checkpoint at a time
+    # Load data one checkpoint at a time
 
     print "Loading", data_path
     data = np.load(data_path) # custom data saved as a numpy file.
@@ -83,7 +84,11 @@ def _main(args):
     #  and an array of images 'images'
     print "Data loaded."
 
-    image_data, boxes = data_utils.process_data(data['images'], data['boxes'])
+    image_data_gen, boxes = data_utils.process_data(iter(data['images']),
+                                                data['images'].shape[2],
+                                                data['images'].shape[1],
+                                                data['boxes'],
+                                                dim=608)
 
     anchors = YOLO_ANCHORS
 
@@ -92,7 +97,7 @@ def _main(args):
     train(
         class_names,
         anchors,
-        image_data,
+        image_data_gen,
         boxes,
         detectors_mask,
         matching_true_boxes,
@@ -140,7 +145,7 @@ def get_detector_mask(boxes, anchors):
     detectors_mask = [0 for i in range(len(boxes))]
     matching_true_boxes = [0 for i in range(len(boxes))]
     for i, box in enumerate(boxes):
-        detectors_mask[i], matching_true_boxes[i] = preprocess_true_boxes(box, anchors, [416, 416])
+        detectors_mask[i], matching_true_boxes[i] = preprocess_true_boxes(box, anchors, [608, 608])
 
     return np.array(detectors_mask), np.array(matching_true_boxes)
 
@@ -162,11 +167,11 @@ def create_model(anchors, class_names, load_pretrained=True, num_frozen=0):
 
     '''
 
-    detectors_mask_shape = (13, 13, 5, 1)
-    matching_boxes_shape = (13, 13, 5, 5)
+    detectors_mask_shape = (19, 19, 5, 1)
+    matching_boxes_shape = (19, 19, 5, 5)
 
     # Create model input layers.
-    image_input = Input(shape=(416, 416, 3))
+    image_input = Input(shape=(608, 608, 3))
     boxes_input = Input(shape=(None, 5))
     detectors_mask_input = Input(shape=detectors_mask_shape)
     matching_boxes_input = Input(shape=matching_boxes_shape)
@@ -219,8 +224,46 @@ def create_model(anchors, class_names, load_pretrained=True, num_frozen=0):
 
     return model_body, model
 
-def train(class_names, anchors, image_data, boxes, detectors_mask,
-          matching_true_boxes, model_prefix, num_frozen, validation_split=0.1):
+def create_generator(images, boxes, detectors_mask, matching_true_boxes, \
+                     batch_size=8, start=0, stop=None):
+
+    if stop == None:
+        stop = len(boxes)
+
+    img_batch = []
+    a_batch = []
+    b_batch = []
+    c_batch = []
+    y_batch = []
+
+    while(True):
+        images, images_copy = tee(images)
+        for i, (a,b,c) in enumerate(zip(boxes, detectors_mask, matching_true_boxes)):
+
+            if i >= start and i < stop:
+                img = next(images_copy)
+                img_batch.append(img)
+                a_batch.append(a)
+                b_batch.append(b)
+                c_batch.append(c)
+                y_batch.append(0)
+
+                if len(a_batch) == batch_size:
+                    tup = ([np.array(img_batch),
+                            np.array(a_batch),
+                            np.array(b_batch),
+                            np.array(c_batch)],
+                            np.array(y_batch))
+                    yield tup
+                    img_batch = []
+                    a_batch = []
+                    b_batch = []
+                    c_batch = []
+                    y_batch = []
+
+def train(class_names, anchors, image_data_gen, boxes, detectors_mask,
+          matching_true_boxes, model_prefix, num_frozen, validation_split=0.1,
+          batch_size=8):
     '''
     retrain/fine-tune the model
 
@@ -238,13 +281,30 @@ def train(class_names, anchors, image_data, boxes, detectors_mask,
         optimizer='adam', loss={
             'yolo_loss': lambda y_true, y_pred: y_pred
         })  # This is a hack to use the custom loss function in the last layer.
+    
+    split_index = int(len(boxes) * 0.9)
 
-    model.fit([image_data, boxes, detectors_mask, matching_true_boxes],
-              np.zeros(len(image_data)),
-              validation_split=0.1,
-              batch_size=8,
-              epochs=40,
-              callbacks=[logging, checkpoint, early_stopping])
+    num_training = (split_index - 1) / batch_size
+    num_validation = (len(boxes) - split_index) / batch_size
+
+    print split_index, num_training, num_validation, len(boxes)
+
+    gen_train = create_generator(image_data_gen, boxes, detectors_mask, matching_true_boxes, stop = split_index, batch_size=batch_size)
+    gen_test = create_generator(image_data_gen, boxes, detectors_mask, matching_true_boxes, start = split_index, batch_size=batch_size)
+
+    model.fit_generator(gen_train,
+                        epochs=40,
+                        validation_data = gen_test,
+                        steps_per_epoch = num_training,
+                        validation_steps = num_validation,
+                        callbacks=[logging, checkpoint, early_stopping])
+
+    #model.fit([list(image_data_gen), boxes, detectors_mask, matching_true_boxes],
+    #          np.zeros(len(image_data)),
+    #          validation_split=0.1,
+    #          batch_size=8,
+    #          epochs=40,
+    #          callbacks=[logging, checkpoint, early_stopping])
 
     #sess = K.get_session()
     #graph_def = sess.graph.as_graph_def()
