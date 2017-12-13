@@ -11,7 +11,7 @@ if __name__ == "__main__":
     target_width = 400
     target_height = 640
 
-    training_example = False
+    training_example = True
     test_example = True
 
     if training_example:

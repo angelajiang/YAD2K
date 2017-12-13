@@ -73,7 +73,6 @@ def create_npz(images_path, annotations_path, labels_path, dest_path,
             except:
                 print(i)
 
-
             # Parse annotations
             cur_images_labels = []
             tree = etree.parse(filename)
@@ -96,15 +95,26 @@ def create_npz(images_path, annotations_path, labels_path, dest_path,
                 boxConfig.append(class_index)
 
                 box = object.find('bndbox')
-                boxConfig.append(float(box.find('xmin').text) * scale * width_scale)
-                boxConfig.append(float(box.find('ymin').text) * scale * height_scale)
-                boxConfig.append(float(box.find('xmax').text) * scale * width_scale)
-                boxConfig.append(float(box.find('ymax').text) * scale * height_scale)
 
-                assert boxConfig[0] <= width
-                assert boxConfig[2] <= width
-                assert boxConfig[1] <= height
-                assert boxConfig[3] <= height
+                xmin_orig = float(box.find('xmin').text)
+                xmax_orig = float(box.find('xmax').text)
+                ymin_orig = float(box.find('ymin').text)
+                ymax_orig = float(box.find('ymax').text)
+
+                xmin_new = xmin_orig * scale * height_scale
+                ymin_new = ymin_orig * scale * width_scale
+                xmax_new = xmax_orig * scale * height_scale
+                ymax_new = ymax_orig * scale * width_scale
+
+                boxConfig.append(xmin_new)
+                boxConfig.append(ymin_new)
+                boxConfig.append(xmax_new)
+                boxConfig.append(ymax_new)
+
+                assert boxConfig[1] <= target_height
+                assert boxConfig[2] <= target_width
+                assert boxConfig[3] <= target_height
+                assert boxConfig[4] <= target_width
 
                 cur_images_labels.append(boxConfig)
 
@@ -119,26 +129,26 @@ def create_npz(images_path, annotations_path, labels_path, dest_path,
     num_boxes = sum([len(i) for i in image_labels])
     print("Found %d boxes" % num_boxes)
 
-    #convert to numpy for saving
+    # convert to numpy for saving
     images = np.array(images, dtype=np.uint8)
     image_labels = [np.array(i[1:]) for i in image_labels]# remove the file names
     image_labels = np.array(image_labels)
 
-    #shuffle dataset
+    # shuffle dataset
     if shuffle_frames:
         np.random.seed(13)
         indices = np.arange(len(images))
         np.random.shuffle(indices)
         images, image_labels = images[indices], image_labels[indices]
 
-    #convert to numpy for saving
+    # convert to numpy for saving
     images = np.array(images, dtype=np.uint8)
     image_labels = [np.array(i) for i in image_labels]# remove the file names
     image_labels = np.array(image_labels)
 
     print("Saving %d images" % len(images))
 
-    #save dataset
+    # save dataset
     np.savez(dest_path, images=images, boxes=image_labels)
     print('Data saved: ', dest_path + ".npz")
     return dest_path
