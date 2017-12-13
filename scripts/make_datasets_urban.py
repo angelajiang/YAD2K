@@ -20,21 +20,50 @@ if __name__ == "__main__":
 
         split = 0.8
 
-        # Sherbrooke - car
+        # atrum - pedestrian
         labels_set = set()
-        labels_set.add("car")
-        labels_file = "car-label.txt"
+        labels_set.add("pedestrian")
+        labels_file = "pedestrian-label.txt"
+        dataset_path_base = 'urban-tracker/atrium'
+        annotations_path = os.path.join(data_path_base,
+                                        dataset_path_base,
+                                        'atrium_annotations/annotations')
+        images_path = os.path.join(data_path_base,
+                                   dataset_path_base,
+                                   'atrium_frames')
+        labels_path = os.path.join(data_path_base,
+                                   'urban-tracker/labels',
+                                   labels_file)
+        dest_file = 'npz/urban-tracker-atrium-pedestrian-training'
+        dest_path = os.path.join(data_path_base, dest_file)
+
+        npz_path = vnpz.create_npz(images_path,
+                        annotations_path,
+                        labels_path,
+                        dest_path,
+                        labels_set = labels_set,
+                        target_width = target_width,
+                        target_height = target_height,
+                        split_ratio = split,
+                        debug = False,
+                        start_at_beginning = True,
+                        shuffle_frames = False)
+
+        # Sherbrooke - pedestrian
+        labels_set = set()
+        labels_set.add("pedestrian")
+        labels_file = "pedestrian-label.txt"
         dataset_path_base = 'urban-tracker/sherbrooke'
         annotations_path = os.path.join(data_path_base,
                                         dataset_path_base,
                                         'sherbrooke_annotations/annotations')
         images_path = os.path.join(data_path_base,
                                    dataset_path_base,
-                                   'sherbrooke_frames')
+                                   'sherbrooke_masked_frames')
         labels_path = os.path.join(data_path_base,
                                    'urban-tracker/labels',
                                    labels_file)
-        dest_file = 'npz/urban-tracker-sherbrooke-car-training'
+        dest_file = 'npz/urban-tracker-sherbrooke-pedestrian-training'
         dest_path = os.path.join(data_path_base, dest_file)
 
         npz_path_1 = vnpz.create_npz(images_path,
@@ -49,21 +78,21 @@ if __name__ == "__main__":
                         start_at_beginning = True,
                         shuffle_frames = False)
 
-        # Rouen - car
+        # Rouen - pedestrian
         labels_set = set()
-        labels_set.add("car")
-        labels_file = "car-label.txt"
+        labels_set.add("pedestrian")
+        labels_file = "pedestrian-label.txt"
         dataset_path_base = 'urban-tracker/rouen'
         annotations_path = os.path.join(data_path_base,
                                         dataset_path_base,
                                         'rouen_annotations/annotations')
         images_path = os.path.join(data_path_base,
                                    dataset_path_base,
-                                   'rouen_frames')
+                                   'rouen_masked_frames')
         labels_path = os.path.join(data_path_base,
                                    'urban-tracker/labels',
                                    labels_file)
-        dest_file = 'npz/urban-tracker-rouen-car-training'
+        dest_file = 'npz/urban-tracker-rouen-pedestrian-training'
         dest_path = os.path.join(data_path_base, dest_file)
 
         npz_path_2 = vnpz.create_npz(images_path,
@@ -78,10 +107,40 @@ if __name__ == "__main__":
                         start_at_beginning = True,
                         shuffle_frames = False)
 
-        # Merge
-        dest_file = 'npz/urban-tracker-rouen-sherbrooke-car-training'
+        # St Marc - pedestrian
+        labels_set = set()
+        labels_set.add("pedestrian")
+        labels_file = "pedestrian-label.txt"
+        dataset_path_base = 'urban-tracker/stmarc'
+        annotations_path = os.path.join(data_path_base,
+                                        dataset_path_base,
+                                        'stmarc_annotations/annotations')
+        images_path = os.path.join(data_path_base,
+                                   dataset_path_base,
+                                   'stmarc_masked_frames')
+        labels_path = os.path.join(data_path_base,
+                                   'urban-tracker/labels',
+                                   labels_file)
+
+        dest_file = 'npz/urban-tracker-stmarc-pedestrian-training'
         dest_path = os.path.join(data_path_base, dest_file)
-        npz_list = [npz_path_1 + ".npz", npz_path_2 + ".npz"]
+
+        npz_path_3 = vnpz.create_npz(images_path,
+                        annotations_path,
+                        labels_path,
+                        dest_path,
+                        labels_set = labels_set,
+                        target_width = target_width,
+                        target_height = target_height,
+                        split_ratio = split,
+                        debug = False,
+                        start_at_beginning = False,
+                        shuffle_frames = False)
+
+        # Merge
+        dest_file = 'npz/urban-tracker-rouen-sherbrooke-stmarc-pedestrian-training'
+        dest_path = os.path.join(data_path_base, dest_file)
+        npz_list = [npz_path_1 + ".npz", npz_path_2 + ".npz", npz_path_3 + ".npz"]
         mnpz.merge(npz_list, dest_path)
 
     if test_example:
@@ -90,21 +149,50 @@ if __name__ == "__main__":
 
         split = 0.2
 
-        # Sherbrooke - car
+        # Atrium - pedestrian
         labels_set = set()
-        labels_set.add("car")
-        labels_file = "car-label.txt"
+        labels_set.add("pedestrian")
+        labels_file = "pedestrian-label.txt"
+        dataset_path_base = 'urban-tracker/atrium'
+        annotations_path = os.path.join(data_path_base,
+                                        dataset_path_base,
+                                        'atrium_annotations/annotations')
+        images_path = os.path.join(data_path_base,
+                                   dataset_path_base,
+                                   'atrium_frames')
+        labels_path = os.path.join(data_path_base,
+                                   'urban-tracker/labels',
+                                   labels_file)
+        dest_file = 'npz/urban-tracker-atrium-pedestrian-test'
+        dest_path = os.path.join(data_path_base, dest_file)
+
+        npz_path = vnpz.create_npz(images_path,
+                        annotations_path,
+                        labels_path,
+                        dest_path,
+                        labels_set = labels_set,
+                        target_width = target_width,
+                        target_height = target_height,
+                        split_ratio = split,
+                        debug = False,
+                        start_at_beginning = False,
+                        shuffle_frames = False)
+
+        # Sherbrooke - pedestrian
+        labels_set = set()
+        labels_set.add("pedestrian")
+        labels_file = "pedestrian-label.txt"
         dataset_path_base = 'urban-tracker/sherbrooke'
         annotations_path = os.path.join(data_path_base,
                                         dataset_path_base,
                                         'sherbrooke_annotations/annotations')
         images_path = os.path.join(data_path_base,
                                    dataset_path_base,
-                                   'sherbrooke_frames')
+                                   'sherbrooke_masked_frames')
         labels_path = os.path.join(data_path_base,
                                    'urban-tracker/labels',
                                    labels_file)
-        dest_file = 'npz/urban-tracker-sherbrooke-car-test'
+        dest_file = 'npz/urban-tracker-sherbrooke-pedestrian-test'
         dest_path = os.path.join(data_path_base, dest_file)
 
         npz_path_1 = vnpz.create_npz(images_path,
@@ -119,21 +207,21 @@ if __name__ == "__main__":
                         start_at_beginning = False,
                         shuffle_frames = False)
 
-        # Rouen - car
+        # Rouen - pedestrian
         labels_set = set()
-        labels_set.add("car")
-        labels_file = "car-label.txt"
+        labels_set.add("pedestrian")
+        labels_file = "pedestrian-label.txt"
         dataset_path_base = 'urban-tracker/rouen'
         annotations_path = os.path.join(data_path_base,
                                         dataset_path_base,
                                         'rouen_annotations/annotations')
         images_path = os.path.join(data_path_base,
                                    dataset_path_base,
-                                   'rouen_frames')
+                                   'rouen_masked_frames')
         labels_path = os.path.join(data_path_base,
                                    'urban-tracker/labels',
                                    labels_file)
-        dest_file = 'npz/urban-tracker-rouen-car-test'
+        dest_file = 'npz/urban-tracker-rouen-pedestrian-test'
         dest_path = os.path.join(data_path_base, dest_file)
 
         npz_path_2 = vnpz.create_npz(images_path,
@@ -148,9 +236,39 @@ if __name__ == "__main__":
                         start_at_beginning = False,
                         shuffle_frames = False)
 
-        # Merge
-        dest_file = 'npz/urban-tracker-rouen-sherbrooke-car-test'
+        # St Marc - pedestrian
+        labels_set = set()
+        labels_set.add("pedestrian")
+        labels_file = "pedestrian-label.txt"
+        dataset_path_base = 'urban-tracker/stmarc'
+        annotations_path = os.path.join(data_path_base,
+                                        dataset_path_base,
+                                        'stmarc_annotations/annotations')
+        images_path = os.path.join(data_path_base,
+                                   dataset_path_base,
+                                   'stmarc_masked_frames')
+        labels_path = os.path.join(data_path_base,
+                                   'urban-tracker/labels',
+                                   labels_file)
+
+        dest_file = 'npz/urban-tracker-stmarc-pedestrian-test'
         dest_path = os.path.join(data_path_base, dest_file)
-        npz_list = [npz_path_1 + ".npz", npz_path_2 + ".npz"]
+
+        npz_path_3 = vnpz.create_npz(images_path,
+                        annotations_path,
+                        labels_path,
+                        dest_path,
+                        labels_set = labels_set,
+                        target_width = target_width,
+                        target_height = target_height,
+                        split_ratio = split,
+                        debug = False,
+                        start_at_beginning = False,
+                        shuffle_frames = False)
+
+        # Merge
+        dest_file = 'npz/urban-tracker-rouen-sherbrooke-stmarc-pedestrian-test'
+        dest_path = os.path.join(data_path_base, dest_file)
+        npz_list = [npz_path_1 + ".npz", npz_path_2 + ".npz", npz_path_3 + ".npz"]
         mnpz.merge(npz_list, dest_path)
 
