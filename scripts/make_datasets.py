@@ -191,7 +191,6 @@ if __name__ == "__main__":
     elif crowdai_pedestrian_augment_example:
 
         # CrowdAI pedestrian dataset
-        dest_file = 'npz/crowdai-pedestrian-training'
         labels_set = set()
         labels_set.add("pedestrian")
         labels_file = "pedestrian-label.txt"
@@ -207,7 +206,8 @@ if __name__ == "__main__":
         images_path = os.path.join(data_path_base,
                                    dataset_path_base,
                                    'images/training')
-        split = 1
+        split1 = 0.1
+        dest_file = 'npz/crowdai-pedestrian-training-' +str(split1)
         dest_path = os.path.join(data_path_base, dest_file)
 
         npz_path_1 = vnpz.create_npz(images_path,
@@ -216,13 +216,11 @@ if __name__ == "__main__":
                         dest_path,
                         target_width = target_width,
                         target_height = target_height,
-                        split_ratio = split,
+                        split_ratio = split1,
                         labels_set = labels_set,
                         scale = 0.5,
                         debug = False,
                         shuffle_frames = False)
-
-        npz_path_1 = "/datasets/BigLearning/ahjiang/bb/npz/crowdai-pedestrian-training"
 
         # Caltech pedestrian dataset
         dataset_path_base = 'caltech-ped-data'
@@ -232,7 +230,7 @@ if __name__ == "__main__":
         images_path = os.path.join(data_path_base,
                                    dataset_path_base,
                                    'images')
-        split2 = 0.5
+        split2 = 1
         dest_file = 'npz/caltech-pedestrian-training-'+str(split2)
         dest_path = os.path.join(data_path_base, dest_file)
 
@@ -247,7 +245,7 @@ if __name__ == "__main__":
                         shuffle_frames = False)
 
         # Merge
-        dest_file = 'npz/crowdai-caltech-pedestrian-training'
+        dest_file = 'npz/pedestrian-training-crowdai-'+str(split1)+"-caltech-"+str(split2)
         dest_path = os.path.join(data_path_base, dest_file)
         npz_list = [npz_path_1 + ".npz", npz_path_2 + ".npz"]
         mnpz.merge(npz_list, dest_path)
