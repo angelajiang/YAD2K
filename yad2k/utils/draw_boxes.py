@@ -55,17 +55,15 @@ def draw_boxes(image, boxes, box_classes, class_names, scores=None):
         box_class = class_names[c]
         box = boxes[i]
         color = colors[c]
-        if isinstance(scores, np.ndarray):
+        if scores is not None:
             score = float(scores[i])
-            label = '{} {:.2f}'.format(box_class, score)
-            image = draw_box(image, box, box_class, c, score)
+            image = draw_box(image, box, box_class, color, score)
         else:
-            label = '{}'.format(box_class)
             image = draw_box(image, box, box_class, color)
 
     return np.array(image)
 
-def draw_box(image, box, box_class, color, score=None):
+def draw_box(image, box, box_class, color, score=None, verbose=False):
 
     font = ImageFont.truetype(
         font='data/font/FiraMono-Medium.otf',
@@ -85,7 +83,9 @@ def draw_box(image, box, box_class, color, score=None):
     left = max(0, np.floor(left + 0.5).astype('int32'))
     bottom = min(image.size[1], np.floor(bottom + 0.5).astype('int32'))
     right = min(image.size[0], np.floor(right + 0.5).astype('int32'))
-    print(label, (left, top), (right, bottom))
+
+    if verbose:
+        print(label, (left, top), (right, bottom))
 
     if top - label_size[1] >= 0:
         text_origin = np.array([left, top - label_size[1]])
