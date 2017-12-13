@@ -9,7 +9,7 @@ from random import shuffle
 
 from lxml import etree
 
-def split(split_ratio, annotations_path, shuffle_frames):
+def split(split_ratio, annotations_path, shuffle_frames, start_at_beginning = True):
 
     assert split_ratio >= 0 and split_ratio <= 1, 'split_ratio should be between 0 and 1'
 
@@ -25,7 +25,10 @@ def split(split_ratio, annotations_path, shuffle_frames):
 
     num_images = int(split_ratio * len(fnames))
 
-    return fnames[:num_images]
+    if start_at_beginning:
+        return fnames[:num_images]
+    else:
+        return fnames[-num_images:]
 
 def create_npz(images_path, annotations_path, labels_path, dest_path,
                target_width = 640, target_height = 400,
