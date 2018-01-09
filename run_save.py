@@ -29,7 +29,7 @@ parser.add_argument(
     '-a',
     '--anchors_path',
     help='path to anchors file, defaults to yolo_anchors.txt',
-    default='model_data/yolo_anchors.txt')
+    default='data/model_data/yolo_anchors.txt')
 parser.add_argument(
     '-c',
     '--classes_path',
@@ -39,12 +39,12 @@ parser.add_argument(
     '-t',
     '--test_path',
     help='path to directory of test images, defaults to images/',
-    default='images')
+    default='data/images/tmp')
 parser.add_argument(
     '-o',
     '--output_path',
     help='path to output test images, defaults to images/out',
-    default='images/out')
+    default='data/images/out')
 parser.add_argument(
     '-s',
     '--score_threshold',
@@ -140,8 +140,11 @@ def _main(args):
                    'iou_threshold': args.iou_threshold,
                    'num_classes': len(class_names)})(yolo_model.output)
 
+    '''
     model = Model(
         [yolo_model.input], [boxes, scores, classes])
+    '''
+
 
     for image_file in os.listdir(test_path):
         try:
@@ -178,7 +181,7 @@ def _main(args):
         print('Found {} boxes for {}'.format(len(out_boxes), image_file))
 
         font = ImageFont.truetype(
-            font='font/FiraMono-Medium.otf',
+            font='data/font/FiraMono-Medium.otf',
             size=np.floor(3e-2 * image.size[1] + 0.5).astype('int32'))
         thickness = (image.size[0] + image.size[1]) // 300
 
