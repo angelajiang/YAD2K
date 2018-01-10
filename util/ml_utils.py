@@ -51,6 +51,12 @@ def get_pr_curve(input_boxes, output_boxes, output_scores, output_classes, iou_t
     prs_by_threshold = {}
     thresholds = np.arange(0.0, 1.0, 0.01)
 
+    # Hack for binary classifiers where we're only looking for one class
+    #for i in range(len(input_boxes)):
+    #    if len(input_boxes[i]) > 0 and len(input_boxes[i][0]) > 0:
+    #        target_class = input_boxes[i][0][0]
+    #        break
+
     for score_threshold in thresholds:
         
         tps = 0     # True positives
@@ -65,6 +71,9 @@ def get_pr_curve(input_boxes, output_boxes, output_scores, output_classes, iou_t
             score_filter = np.array([True if score >= score_threshold \
                                           else False \
                                           for score in p_scores])
+            #index_filter = np.array([True if c == target_class and score >= score_threshold\
+            #                              else False \
+            #                              for c, score in zip(p_classes, p_scores)])
             filtered_boxes_and_classes = list(compress(boxes_and_classes, score_filter))
 
             # Edge case: if there are no boxes, increment nothing
@@ -102,10 +111,10 @@ def get_pr_curve(input_boxes, output_boxes, output_scores, output_classes, iou_t
         else:
             precision = tps / float(tps + fps)
 
-        print("Threshold: %.4g , TPs: %d, FPs: %d, FNs: %d" % (score_threshold,
-                                                               tps,
-                                                               fps,
-                                                               fns))
+        #print("Threshold: %.4g , TPs: %d, FPs: %d, FNs: %d" % (score_threshold,
+        #                                                       tps,
+        #                                                       fps,
+        #                                                       fns))
 
 
         prs_by_threshold[score_threshold] = {}
