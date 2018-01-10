@@ -21,8 +21,8 @@ from yad2k.models.keras_yolo import (preprocess_true_boxes, yolo_body,
 from yad2k.utils.draw_boxes import draw_boxes
 
 sys.path.append("util")
-
 import data_utils
+from inference import run_inference
 
 # Args
 argparser = argparse.ArgumentParser(
@@ -47,6 +47,18 @@ argparser.add_argument(
     default=os.path.join('..', 'DATA', 'underwater_classes.txt'))
 
 argparser.add_argument(
+    '-test',
+    '--test_path',
+    help='path to test NPZ',
+    default=os.path.join(''))
+
+argparser.add_argument(
+    '-r',
+    '--result_path',
+    help='path to result out path',
+    default=os.path.join(''))
+
+argparser.add_argument(
     '-p',
     '--model_prefix',
     help='File prefix to save model',
@@ -58,6 +70,12 @@ argparser.add_argument(
     help='Number of layers held frozen during training',
     default=0)
 
+argparser.add_argument(
+    '-t',
+    '--num_trials',
+    help='Number of layers held frozen during training',
+    default=1)
+
 # Default anchor boxes
 YOLO_ANCHORS = np.array(
     ((0.57273, 0.677385), (1.87446, 2.06253), (3.33843, 5.47434),
@@ -67,51 +85,61 @@ def _main(args):
     data_path = os.path.expanduser(args.data_path)
     classes_path = os.path.expanduser(args.classes_path)
     anchors_path = os.path.expanduser(args.anchors_path)
+    result_path = os.path.expanduser(args.result_path)
+    test_path = os.path.expanduser(args.test_path)
     model_prefix = os.path.expanduser(args.model_prefix)
-    num_frozen = int(os.path.expanduser(args.num_frozen))
-
-    model_prefix += "-" + str(num_frozen) + "fr"
-    print "Training model:", model_prefix
+    num_frozen = int(args.num_frozen)
+    num_trials = int(args.num_trials)
 
     class_names = get_classes(classes_path)
-    anchors = get_anchors(anchors_path)
-
-    # Load data one checkpoint at a time
 
     data = np.load(data_path) # custom data saved as a numpy file.
     #  has 2 arrays: an object array 'boxes' (variable length of boxes in each image)
     #  and an array of images 'images'
 
-    image_data_gen, boxes = data_utils.process_data(iter(data['images']),
-                                                data['images'].shape[2],
-                                                data['images'].shape[1],
-                                                data['boxes'],
-                                                dim=608)
-
+    anchors = get_anchors(anchors_path)
     anchors = YOLO_ANCHORS
 
-    detectors_mask, matching_true_boxes = get_detector_mask(boxes, anchors)
+    for trial in range(num_trials):
 
-    train(
-        class_names,
-        anchors,
-        image_data_gen,
-        boxes,
-        detectors_mask,
-        matching_true_boxes,
-        model_prefix,
-        num_frozen
-    )
+        # Reprocess data to populate image_data_gen. Sacrifice latency for memory
+        image_data_gen, boxes = data_utils.process_data(iter(data['images']),
+                                                    data['images'].shape[2],
+                                                    data['images'].shape[1],
+                                                    data['boxes'],
+                                                    dim=608)
+        detectors_mask, matching_true_boxes = get_detector_mask(boxes, anchors)
 
-    model_body, model = create_model(anchors, class_names, num_frozen=num_frozen)
 
-    #draw(model_body,
-    #    class_names,
-    #    anchors,
-    #    list(image_data_gen),
-    #    image_set='val', # assumes training/validation split is 0.9
-    #    weights_name='data/checkpoint_best_weights.h5',
-    #    save_all=False)
+        model_prefix += "-" + str(num_frozen) + "fr-trial" + str(trial)
+        print "Training model:", model_prefix
+
+        train(class_names,
+              anchors,
+              image_data_gen,
+              boxes,
+              detectors_mask,
+              matching_true_boxes,
+              model_prefix,
+              num_frozen)
+
+        if test_path != "" and result_path != "":
+            mAP, precision, recalls = run_inference(model_prefix + ".h5",
+                                                    anchors,
+                                                    classes_path,
+                                                    test_path,
+                                                    None,           # output_path
+                                                    1,              # mode
+                                                    0.5,            # score_threshold
+                                                    0.5,            # iou_threshold
+                                                    0.5)            # mAP_iou_threshold
+            with open(result_path, "w+") as f:
+                line = "%d,%d,%.6g,%.6g,%.6g\n" % (trial,
+                                                   num_frozen,
+                                                   mAP,
+                                                   np.average(precision),
+                                                   np.average(recalls))
+                f.write(line)
 
 
 def get_classes(classes_path):
@@ -285,10 +313,8 @@ def train(class_names, anchors, image_data_gen, boxes, detectors_mask,
     num_training = (split_index - 1) / batch_size
     num_validation = (len(boxes) - split_index) / batch_size
 
-    print split_index, num_training, num_validation, len(boxes)
-
     gen_train = create_generator(image_data_gen, boxes, detectors_mask, matching_true_boxes, stop = split_index, batch_size=batch_size)
-    gen_test = create_generator(image_data_gen, boxes, detectors_mask, matching_true_boxes, start = split_index, batch_size=batch_size)
+    gen_test =  create_generator(image_data_gen, boxes, detectors_mask, matching_true_boxes, start = split_index, batch_size=batch_size)
 
     model.fit_generator(gen_train,
                         epochs=40,
@@ -296,13 +322,6 @@ def train(class_names, anchors, image_data_gen, boxes, detectors_mask,
                         steps_per_epoch = num_training,
                         validation_steps = num_validation,
                         callbacks=[logging, checkpoint, early_stopping])
-
-    #model.fit([list(image_data_gen), boxes, detectors_mask, matching_true_boxes],
-    #          np.zeros(len(image_data)),
-    #          validation_split=0.1,
-    #          batch_size=8,
-    #          epochs=40,
-    #          callbacks=[logging, checkpoint, early_stopping])
 
     #sess = K.get_session()
     #graph_def = sess.graph.as_graph_def()
@@ -315,60 +334,6 @@ def train(class_names, anchors, image_data_gen, boxes, detectors_mask,
 
     model_body.save_weights(model_prefix+"_weights.h5")
     save_model(model_body, model_prefix+".h5", overwrite=True)
-
-def draw(model_body, class_names, anchors, image_data, image_set='val',
-            weights_name='data/checkpoint_best_weights.h5', out_path="data/output_images", save_all=True):
-    '''
-    Draw bounding boxes on image data
-    '''
-    if image_set == 'train':
-        image_data = np.array([np.expand_dims(image, axis=0)
-            for image in image_data[:int(len(image_data)*.9)]])
-    elif image_set == 'val':
-        image_data = np.array([np.expand_dims(image, axis=0)
-            for image in image_data[int(len(image_data)*.9):]])
-    elif image_set == 'all':
-        image_data = np.array([np.expand_dims(image, axis=0)
-            for image in image_data])
-    else:
-        ValueError("draw argument image_set must be 'train', 'val', or 'all'")
-    # model.load_weights(weights_name)
-    print(image_data.shape)
-    model_body.load_weights(weights_name)
-
-    # Create output variables for prediction.
-    yolo_outputs = yolo_head(model_body.output, anchors, len(class_names))
-    input_image_shape = K.placeholder(shape=(2, ))
-    boxes, scores, classes = yolo_eval(
-        yolo_outputs, input_image_shape, score_threshold=0.07, iou_threshold=0)
-
-    # Run prediction on overfit image.
-    sess = K.get_session()  # TODO: Remove dependence on Tensorflow session.
-
-    if  not os.path.exists(out_path):
-        os.makedirs(out_path)
-    for i in range(len(image_data)):
-        out_boxes, out_scores, out_classes = sess.run(
-            [boxes, scores, classes],
-            feed_dict={
-                model_body.input: image_data[i],
-                input_image_shape: [image_data.shape[2], image_data.shape[3]],
-                K.learning_phase(): 0
-            })
-        print('Found {} boxes for image.'.format(len(out_boxes)))
-        print(out_boxes)
-
-        # Plot image with predicted boxes.
-        image_with_boxes = draw_boxes(image_data[i][0], out_boxes, out_classes,
-                                    class_names, out_scores)
-        # Save the image:
-        if save_all or (len(out_boxes) > 0):
-            image = PIL.Image.fromarray(image_with_boxes)
-            image.save(os.path.join(out_path,str(i)+'.png'))
-
-        # To display (pauses the program):
-        # plt.imshow(image_with_boxes, interpolation='nearest')
-        # plt.show()
 
 if __name__ == '__main__':
     args = argparser.parse_args()
