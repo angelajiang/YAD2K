@@ -16,7 +16,6 @@ from PIL import Image, ImageDraw, ImageFont
 from yad2k.utils.draw_boxes import draw_boxes, draw_boxes_advanced
 import tensorflow as tf
 
-from keras.models import Sequential
 from keras.layers import Lambda
 
 import matplotlib
@@ -98,6 +97,12 @@ parser.add_argument(
     type=int,
     help='Target class index to transform into 0s',
     default=0)
+parser.add_argument(
+    '-ns',
+    '--num_saved_images',
+    type=int,
+    help='Number of images to save with bbs',
+    default=0)
 
 
 def _main(args):
@@ -163,9 +168,8 @@ def _main(args):
                                                anchors,
                                                len(class_names),
                                                input_image_shape,
-                                               0.3,
+                                               args.score_threshold,
                                                args.iou_threshold)
-
 
     total_num_bboxes = 0
     total_num_images = 0
@@ -260,8 +264,6 @@ def _main(args):
         output_scores = []
         output_classes = []
 
-        total_num_bboxes = 0
-
         for i, (image, gt_boxes) in enumerate(zip(input_images, input_boxes)):
 
             height, width = image.shape[:2]
@@ -341,20 +343,26 @@ def _main(args):
             output_scores.append(out_scores)
             output_classes.append(out_classes)
 
-            # Draw TP, FP, FNs on image
-            image_with_boxes = draw_boxes_advanced(image_data_orig[0],
-                                                      transformed_gt_boxes,
-                                                      gt_classes,
-                                                      out_boxes,
-                                                      out_classes,
-                                                      out_scores,
-                                                      class_names,
-                                                      score_threshold=args.score_threshold,
-                                                      iou_threshold=args.map_iou_threshold)
+            if total_num_images < args.num_saved_images:
+                # Draw TP, FP, FNs on image
+                image_with_boxes = draw_boxes_advanced(image_data_orig[0],
+                                                          transformed_gt_boxes,
+                                                          gt_classes,
+                                                          out_boxes,
+                                                          out_classes,
+                                                          out_scores,
+                                                          class_names,
+                                                          score_threshold=0.3,
+                                                          iou_threshold=args.map_iou_threshold)
+                #image_with_boxes = draw_boxes(image_data_orig[0],
+                #                              transformed_gt_boxes,
+                #                              gt_classes,
+                #                              class_names,
+                #                              scores=None)
 
-            full_image  = PIL.Image.fromarray(image_with_boxes)
-            full_image.save(os.path.join(output_path, str(i)+'.png'))
-
+                full_image  = PIL.Image.fromarray(image_with_boxes)
+                full_image.save(os.path.join(output_path, \
+                                             str(args.map_iou_threshold)+"-"+str(i)+'.png'))
 
         # Hack for running YOLO as a binary classifier
         # Map label indices in NPZ to label indices of trained model
