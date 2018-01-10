@@ -78,11 +78,9 @@ def _main(args):
 
     # Load data one checkpoint at a time
 
-    print "Loading", data_path
     data = np.load(data_path) # custom data saved as a numpy file.
     #  has 2 arrays: an object array 'boxes' (variable length of boxes in each image)
     #  and an array of images 'images'
-    print "Data loaded."
 
     image_data_gen, boxes = data_utils.process_data(iter(data['images']),
                                                 data['images'].shape[2],
@@ -107,13 +105,13 @@ def _main(args):
 
     model_body, model = create_model(anchors, class_names, num_frozen=num_frozen)
 
-    draw(model_body,
-        class_names,
-        anchors,
-        image_data,
-        image_set='val', # assumes training/validation split is 0.9
-        weights_name='data/checkpoint_best_weights.h5',
-        save_all=False)
+    #draw(model_body,
+    #    class_names,
+    #    anchors,
+    #    list(image_data_gen),
+    #    image_set='val', # assumes training/validation split is 0.9
+    #    weights_name='data/checkpoint_best_weights.h5',
+    #    save_all=False)
 
 
 def get_classes(classes_path):
@@ -185,7 +183,7 @@ def create_model(anchors, class_names, load_pretrained=True, num_frozen=0):
         topless_yolo_path = os.path.join('data', 'model_data', 'yolo_topless.h5')
         if not os.path.exists(topless_yolo_path):
             print("CREATING TOPLESS WEIGHTS FILE")
-            yolo_path = os.path.join('data', 'model_data', 'yolo.h5')
+            yolo_path = os.path.join('data', 'model_data', 'yolo2.h5')
             model_body = load_model(yolo_path)
             model_body = Model(model_body.inputs, model_body.layers[-2].output)
             model_body.save_weights(topless_yolo_path)
@@ -273,7 +271,7 @@ def train(class_names, anchors, image_data_gen, boxes, detectors_mask,
     logging = TensorBoard()
     checkpoint = ModelCheckpoint("data/checkpoint_best_weights.h5", monitor='val_loss',
                                  save_weights_only=True, save_best_only=True)
-    early_stopping = EarlyStopping(monitor='val_loss', min_delta=0, patience=15, verbose=1, mode='auto')
+    early_stopping = EarlyStopping(monitor='val_loss', min_delta=0, patience=10, verbose=1, mode='auto')
 
     model_body, model = create_model(anchors, class_names, load_pretrained=True, num_frozen=num_frozen)
 
