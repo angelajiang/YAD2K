@@ -90,6 +90,7 @@ def _main(args):
     model_prefix = os.path.expanduser(args.model_prefix)
     num_frozen = int(args.num_frozen)
     num_trials = int(args.num_trials)
+    num_epochs = 60
 
     class_names = get_classes(classes_path)
 
@@ -111,8 +112,8 @@ def _main(args):
         detectors_mask, matching_true_boxes = get_detector_mask(boxes, anchors)
 
 
-        model_prefix += "-" + str(num_frozen) + "fr-trial" + str(trial)
-        print "Training model:", model_prefix
+        model_name = model_prefix + "-" + str(num_frozen) + "fr-trial" + str(trial)
+        print "Training model:", model_name
 
         train(class_names,
               anchors,
@@ -120,11 +121,13 @@ def _main(args):
               boxes,
               detectors_mask,
               matching_true_boxes,
-              model_prefix,
-              num_frozen)
+              model_name,
+              num_frozen,
+              num_epochs
+              )
 
         if test_path != "" and result_path != "":
-            mAP, precision, recalls = run_inference(model_prefix + ".h5",
+            mAP, precision, recalls = run_inference(model_name + ".h5",
                                                     anchors,
                                                     classes_path,
                                                     test_path,
@@ -133,12 +136,14 @@ def _main(args):
                                                     0.5,            # score_threshold
                                                     0.5,            # iou_threshold
                                                     0.5)            # mAP_iou_threshold
-            with open(result_path, "w+") as f:
-                line = "%d,%d,%.6g,%.6g,%.6g\n" % (trial,
+            with open(result_path, "a+") as f:
+                line = "%d,%d,%.6g,%.6g,%.6g,%d,%s\n" % (trial,
                                                    num_frozen,
                                                    mAP,
                                                    np.average(precision),
-                                                   np.average(recalls))
+                                                   np.average(recalls),
+                                                   num_epochs,
+                                                   model_name + ".h5")
                 f.write(line)
 
 
@@ -288,7 +293,7 @@ def create_generator(images, boxes, detectors_mask, matching_true_boxes, \
                     y_batch = []
 
 def train(class_names, anchors, image_data_gen, boxes, detectors_mask,
-          matching_true_boxes, model_prefix, num_frozen, validation_split=0.1,
+          matching_true_boxes, model_prefix, num_frozen, num_epochs, validation_split=0.1,
           batch_size=8):
     '''
     retrain/fine-tune the model
@@ -297,9 +302,10 @@ def train(class_names, anchors, image_data_gen, boxes, detectors_mask,
 
     '''
     logging = TensorBoard()
-    checkpoint = ModelCheckpoint("data/checkpoint_best_weights.h5", monitor='val_loss',
+    best_weights_file = os.path.join(model_prefix + "-best-weights.h5")
+    checkpoint = ModelCheckpoint(best_weights_file, monitor='val_loss',
                                  save_weights_only=True, save_best_only=True)
-    early_stopping = EarlyStopping(monitor='val_loss', min_delta=0, patience=10, verbose=1, mode='auto')
+    early_stopping = EarlyStopping(monitor='val_loss', min_delta=0, patience=15, verbose=1, mode='auto')
 
     model_body, model = create_model(anchors, class_names, load_pretrained=True, num_frozen=num_frozen)
 
@@ -307,21 +313,55 @@ def train(class_names, anchors, image_data_gen, boxes, detectors_mask,
         optimizer='adam', loss={
             'yolo_loss': lambda y_true, y_pred: y_pred
         })  # This is a hack to use the custom loss function in the last layer.
+
+    image_data = np.array(list(image_data_gen))
+
+    model.fit([image_data, boxes, detectors_mask, matching_true_boxes],
+                  np.zeros(len(image_data)),
+                  validation_split=0.1,
+                  batch_size=8,
+                  epochs=num_epochs,
+                  shuffle=False,
+                  callbacks=[logging])
+
+    model.fit([image_data, boxes, detectors_mask, matching_true_boxes],
+                  np.zeros(len(image_data)),
+                  validation_split=0.1,
+                  batch_size=8,
+                  epochs=num_epochs,
+                  shuffle=False,
+                  callbacks=[logging, checkpoint, early_stopping])
+
     
+    '''
     split_index = int(len(boxes) * 0.9)
 
     num_training = (split_index - 1) / batch_size
     num_validation = (len(boxes) - split_index) / batch_size
 
-    gen_train = create_generator(image_data_gen, boxes, detectors_mask, matching_true_boxes, stop = split_index, batch_size=batch_size)
-    gen_test =  create_generator(image_data_gen, boxes, detectors_mask, matching_true_boxes, start = split_index, batch_size=batch_size)
+    image_data_gen_1, image_data_gen_2 = tee(image_data_gen)
+
+    gen_train = create_generator(image_data_gen_1, boxes, detectors_mask, matching_true_boxes, stop = split_index, batch_size=batch_size)
+    gen_test =  create_generator(image_data_gen_1, boxes, detectors_mask, matching_true_boxes, start = split_index, batch_size=batch_size)
 
     model.fit_generator(gen_train,
-                        epochs=40,
+                        epochs=30,
                         validation_data = gen_test,
                         steps_per_epoch = num_training,
                         validation_steps = num_validation,
+                        shuffle=False,
+                        callbacks=[logging])
+
+    gen_train2 = create_generator(image_data_gen_2, boxes, detectors_mask, matching_true_boxes, stop = split_index, batch_size=batch_size)
+    gen_test2 =  create_generator(image_data_gen_2, boxes, detectors_mask, matching_true_boxes, start = split_index, batch_size=batch_size)
+
+    model.fit_generator(gen_train2,
+                        epochs=30,
+                        validation_data = gen_test2,
+                        steps_per_epoch = num_training,
+                        validation_steps = num_validation,
                         callbacks=[logging, checkpoint, early_stopping])
+    '''
 
     #sess = K.get_session()
     #graph_def = sess.graph.as_graph_def()
@@ -332,7 +372,8 @@ def train(class_names, anchors, image_data_gen, boxes, detectors_mask,
     #saver = tf.train.Saver()
     #saver.save(sess, model_prefix+'.ckpt', write_meta_graph=True)
 
-    model_body.save_weights(model_prefix+"_weights.h5")
+    #model_body.save_weights(model_prefix+"_weights.h5")
+    model_body.load_weights(best_weights_file)
     save_model(model_body, model_prefix+".h5", overwrite=True)
 
 if __name__ == '__main__':

@@ -122,21 +122,18 @@ def _main(args):
                                             args.class_index,
                                             args.num_saved_images)
 
-    if mode == 1:
-        plt.scatter(recalls, precisions)
-        plt.xlim(0,1)
-        plt.ylim(0,1)
-        plt.xlabel("Recall")
-        plt.ylabel("Precision")
-        plt.savefig(args.plot_file)
-        plt.clf()
+    plt.scatter(recalls, precision)
+    plt.xlim(0,1)
+    plt.ylim(0,1)
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
+    plt.savefig(args.plot_file)
+    plt.clf()
 
-        print("%s,%.6g,%.6g,%.6g" % (args.identifier,
-                                      mAP,
-                                      np.average(precisions),
-                                      np.average(recalls))
-
-    sess.close()
+    print("%s,%.6g,%.6g,%.6g" % (args.identifier,
+                                 mAP,
+                                 np.average(precision),
+                                 np.average(recalls)))
 
 
 if __name__ == '__main__':

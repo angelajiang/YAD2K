@@ -25,7 +25,13 @@ input="/datasets/BigLearning/ahjiang/bb/npz/urban-tracker-rouen-sherbrooke-car-t
 
 ## Training
 
-# CrowdAI car
+# Rouen
+
+npz="/datasets/BigLearning/ahjiang/bb/npz/urban-tracker-rouen-car-training.npz"
+labels="/datasets/BigLearning/ahjiang/bb/urban-tracker/labels/car-label.txt"
+outmodel="data/models/exp/yolov2-rouen-car"
+
+# CrowdAI
 
 npz="/datasets/BigLearning/ahjiang/bb/npz/crowdai-car-training-0.8.npz"
 labels="/datasets/BigLearning/ahjiang/bb/udacity-od-crowdai/Udacity_object_dataset/labels/car-label.txt"
