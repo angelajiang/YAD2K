@@ -71,10 +71,23 @@ argparser.add_argument(
     default=0)
 
 argparser.add_argument(
+    '-e',
+    '--num_epochs',
+    help='Number epochs in each stage',
+    default=40)
+
+argparser.add_argument(
     '-t',
     '--num_trials',
     help='Number of layers held frozen during training',
     default=1)
+
+argparser.add_argument(
+    '-s',
+    '--shuffle',
+    help='Shuffle input data if True',
+    default=1)
+
 
 # Default anchor boxes
 YOLO_ANCHORS = np.array(
@@ -90,7 +103,8 @@ def _main(args):
     model_prefix = os.path.expanduser(args.model_prefix)
     num_frozen = int(args.num_frozen)
     num_trials = int(args.num_trials)
-    num_epochs = 60
+    num_epochs = int(args.num_epochs)
+    shuffle_input = bool(int(args.shuffle))
 
     class_names = get_classes(classes_path)
 
@@ -123,7 +137,8 @@ def _main(args):
               matching_true_boxes,
               model_name,
               num_frozen,
-              num_epochs
+              num_epochs,
+              shuffle_input=shuffle_input
               )
 
         if test_path != "" and result_path != "":
@@ -294,7 +309,7 @@ def create_generator(images, boxes, detectors_mask, matching_true_boxes, \
 
 def train(class_names, anchors, image_data_gen, boxes, detectors_mask,
           matching_true_boxes, model_prefix, num_frozen, num_epochs, validation_split=0.1,
-          batch_size=8):
+          batch_size=8, shuffle_input=True):
     '''
     retrain/fine-tune the model
 
@@ -314,54 +329,53 @@ def train(class_names, anchors, image_data_gen, boxes, detectors_mask,
             'yolo_loss': lambda y_true, y_pred: y_pred
         })  # This is a hack to use the custom loss function in the last layer.
 
-    image_data = np.array(list(image_data_gen))
+    if shuffle_input:
+        split_index = int(len(boxes) * 0.9)
 
-    model.fit([image_data, boxes, detectors_mask, matching_true_boxes],
-                  np.zeros(len(image_data)),
-                  validation_split=0.1,
-                  batch_size=8,
-                  epochs=num_epochs,
-                  shuffle=False,
-                  callbacks=[logging])
+        num_training = (split_index - 1) / batch_size
+        num_validation = (len(boxes) - split_index) / batch_size
 
-    model.fit([image_data, boxes, detectors_mask, matching_true_boxes],
-                  np.zeros(len(image_data)),
-                  validation_split=0.1,
-                  batch_size=8,
-                  epochs=num_epochs,
-                  shuffle=False,
-                  callbacks=[logging, checkpoint, early_stopping])
+        image_data_gen_1, image_data_gen_2 = tee(image_data_gen)
 
-    
-    '''
-    split_index = int(len(boxes) * 0.9)
+        gen_train = create_generator(image_data_gen_1, boxes, detectors_mask, matching_true_boxes, stop = split_index, batch_size=batch_size)
+        gen_test =  create_generator(image_data_gen_1, boxes, detectors_mask, matching_true_boxes, start = split_index, batch_size=batch_size)
 
-    num_training = (split_index - 1) / batch_size
-    num_validation = (len(boxes) - split_index) / batch_size
+        model.fit_generator(gen_train,
+                            epochs=num_epochs,
+                            validation_data = gen_test,
+                            steps_per_epoch = num_training,
+                            validation_steps = num_validation,
+                            callbacks=[logging])
 
-    image_data_gen_1, image_data_gen_2 = tee(image_data_gen)
+        gen_train2 = create_generator(image_data_gen_2, boxes, detectors_mask, matching_true_boxes, stop = split_index, batch_size=batch_size)
+        gen_test2 =  create_generator(image_data_gen_2, boxes, detectors_mask, matching_true_boxes, start = split_index, batch_size=batch_size)
 
-    gen_train = create_generator(image_data_gen_1, boxes, detectors_mask, matching_true_boxes, stop = split_index, batch_size=batch_size)
-    gen_test =  create_generator(image_data_gen_1, boxes, detectors_mask, matching_true_boxes, start = split_index, batch_size=batch_size)
+        model.fit_generator(gen_train2,
+                            epochs=num_epochs,
+                            validation_data = gen_test2,
+                            steps_per_epoch = num_training,
+                            validation_steps = num_validation,
+                            callbacks=[logging, checkpoint, early_stopping])
+    else:
 
-    model.fit_generator(gen_train,
-                        epochs=30,
-                        validation_data = gen_test,
-                        steps_per_epoch = num_training,
-                        validation_steps = num_validation,
-                        shuffle=False,
-                        callbacks=[logging])
+        image_data = np.array(list(image_data_gen))
 
-    gen_train2 = create_generator(image_data_gen_2, boxes, detectors_mask, matching_true_boxes, stop = split_index, batch_size=batch_size)
-    gen_test2 =  create_generator(image_data_gen_2, boxes, detectors_mask, matching_true_boxes, start = split_index, batch_size=batch_size)
+        model.fit([image_data, boxes, detectors_mask, matching_true_boxes],
+                   np.zeros(len(image_data)),
+                   validation_split=0.1,
+                   batch_size=8,
+                   epochs=num_epochs,
+                   shuffle=False,
+                   callbacks=[logging])
 
-    model.fit_generator(gen_train2,
-                        epochs=30,
-                        validation_data = gen_test2,
-                        steps_per_epoch = num_training,
-                        validation_steps = num_validation,
-                        callbacks=[logging, checkpoint, early_stopping])
-    '''
+        model.fit([image_data, boxes, detectors_mask, matching_true_boxes],
+                   np.zeros(len(image_data)),
+                   validation_split=0.1,
+                   batch_size=8,
+                   epochs=num_epochs,
+                   shuffle=False,
+                   callbacks=[logging, checkpoint, early_stopping])
+
 
     #sess = K.get_session()
     #graph_def = sess.graph.as_graph_def()
