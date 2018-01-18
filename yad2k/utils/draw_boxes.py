@@ -8,7 +8,7 @@ from PIL import Image, ImageDraw, ImageFont
 from itertools import compress
 
 import sys
-sys.path.append("util")
+sys.path.append("YAD2K/util")
 from ml_utils import bb_intersection_over_union
 
 
