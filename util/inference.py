@@ -11,6 +11,8 @@ import tensorflow as tf
 from keras import backend as K
 from keras.models import load_model, save_model
 from PIL import Image, ImageDraw, ImageFont
+from scipy.stats import linregress, stats
+
 from yad2k.utils.draw_boxes import draw_boxes, draw_boxes_advanced
 from yad2k.models.keras_yolo import yolo_head, yolo_eval, yolo_post_process
 
@@ -288,5 +290,13 @@ def run_inference(model_path,
                                                  output_classes,
                                                  iou_threshold=map_iou_threshold)
     mAP, precisions, recalls = ml_utils.get_mAP(prs_by_threshold)
-    return (mAP, precisions, recalls)
+
+    f1s = []
+    for p, r in zip(precisions, recalls):
+        if p == 0 or r == 0:
+            f1s.append(-1)
+        else:
+            f1s.append(stats.hmean([p,r]))
+
+    return (mAP, f1s, precisions, recalls)
 
