@@ -13,6 +13,7 @@ from keras.models import load_model, save_model
 from PIL import Image, ImageDraw, ImageFont
 from scipy.stats import linregress, stats
 
+sys.path.append("YAD2K")
 from yad2k.utils.draw_boxes import draw_boxes, draw_boxes_advanced
 from yad2k.models.keras_yolo import yolo_head, yolo_eval, yolo_post_process
 
